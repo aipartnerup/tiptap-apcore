@@ -6,4 +6,5 @@
  */
 
 export { serve, toOpenaiTools, resolveRegistry, resolveExecutor } from "apcore-mcp";
-export type { ServeOptions, ToOpenaiToolsOptions, RegistryOrExecutor, OpenAIToolDef } from "apcore-mcp";
+export { ExplorerHandler } from "apcore-mcp";
+export type { ServeOptions, ToOpenaiToolsOptions, RegistryOrExecutor, OpenAIToolDef, ExplorerHandlerOptions } from "apcore-mcp";
