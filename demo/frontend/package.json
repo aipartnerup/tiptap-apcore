@@ -1,5 +1,5 @@
 {
-  "name": "tiptap-apcore-demo",
+  "name": "tiptap-apcore-demo-frontend",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "@tiptap/react": "^2.10.0",
     "@tiptap/starter-kit": "^2.10.0",
     "@tiptap/pm": "^2.10.0",
-    "tiptap-apcore": "file:..",
+    "tiptap-apcore": "file:../..",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

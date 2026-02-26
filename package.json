@@ -30,7 +30,7 @@
   "peerDependencies": {
     "@tiptap/core": "^2.0.0",
     "apcore-js": "^0.6.0",
-    "apcore-mcp": "^0.5.0"
+    "apcore-mcp": "^0.6.0"
   },
   "devDependencies": {
     "@tiptap/core": "^2.10.0",
@@ -38,7 +38,7 @@
     "@tiptap/starter-kit": "^2.10.0",
     "@vitest/coverage-v8": "^3.0.0",
     "apcore-js": "^0.6.0",
-    "apcore-mcp": "^0.5.0",
+    "apcore-mcp": "^0.6.0",
     "apdev-js": "^0.1.1",
     "jsdom": "^25.0.0",
     "typescript": "^5.5.0",

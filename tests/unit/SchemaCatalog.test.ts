@@ -183,9 +183,8 @@ describe("SchemaCatalog", () => {
     it("accepts optional blockSeparator", () => {
       const entry = catalog.get("getText");
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.blockSeparator).toEqual({ type: "string" });
-      // blockSeparator is optional so required should be undefined or empty
-      expect(entry.inputSchema.required).toBeUndefined();
+      expect(inProps.blockSeparator).toEqual({ type: ["string", "null"] });
+      expect(entry.inputSchema.required).toEqual(["blockSeparator"]);
     });
 
     it("outputs text string", () => {
@@ -201,8 +200,8 @@ describe("SchemaCatalog", () => {
       const entry = catalog.get("isActive");
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       expect(inProps.name).toEqual({ type: "string" });
-      expect(inProps.attrs).toEqual({ type: "object" });
-      expect(entry.inputSchema.required).toEqual(["name"]);
+      expect(inProps.attrs).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
+      expect(entry.inputSchema.required).toEqual(["name", "attrs"]);
     });
 
     it("outputs boolean active", () => {
@@ -283,8 +282,8 @@ describe("SchemaCatalog", () => {
     it("accepts optional color string", () => {
       const entry = catalog.get("toggleHighlight");
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.color).toEqual({ type: "string" });
-      expect(entry.inputSchema.required).toBeUndefined();
+      expect(inProps.color).toEqual({ type: ["string", "null"] });
+      expect(entry.inputSchema.required).toEqual(["color"]);
     });
   });
 
@@ -292,16 +291,16 @@ describe("SchemaCatalog", () => {
     it("accepts optional language string", () => {
       const entry = catalog.get("toggleCodeBlock");
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.language).toEqual({ type: "string" });
+      expect(inProps.language).toEqual({ type: ["string", "null"] });
     });
   });
 
   describe("setMark / unsetMark", () => {
     it("setMark requires typeOrName, optional attrs", () => {
       const entry = catalog.get("setMark");
-      expect(entry.inputSchema.required).toEqual(["typeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["typeOrName", "attrs"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.attrs).toEqual({ type: "object" });
+      expect(inProps.attrs).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
 
     it("unsetMark requires typeOrName", () => {
@@ -313,11 +312,11 @@ describe("SchemaCatalog", () => {
   describe("setLink", () => {
     it("requires href, optional target and rel", () => {
       const entry = catalog.get("setLink");
-      expect(entry.inputSchema.required).toEqual(["href"]);
+      expect(entry.inputSchema.required).toEqual(["href", "target", "rel"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       expect(inProps.href).toEqual({ type: "string" });
-      expect(inProps.target).toEqual({ type: "string" });
-      expect(inProps.rel).toEqual({ type: "string" });
+      expect(inProps.target).toEqual({ type: ["string", "null"] });
+      expect(inProps.rel).toEqual({ type: ["string", "null"] });
     });
   });
 
@@ -333,38 +332,39 @@ describe("SchemaCatalog", () => {
   describe("insertContent", () => {
     it("requires value, has nested options schema", () => {
       const entry = catalog.get("insertContent");
-      expect(entry.inputSchema.required).toEqual(["value"]);
+      expect(entry.inputSchema.required).toEqual(["value", "options"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       expect(inProps.value).toEqual({ type: "string" });
 
-      // Verify nested options structure
+      // Verify nested options structure (nullable since optional)
       const options = inProps.options as JsonSchema;
-      expect(options.type).toBe("object");
+      expect(options.type).toEqual(["object", "null"]);
       expect(options.additionalProperties).toBe(false);
       const optionProps = options.properties as Record<string, JsonSchema>;
-      expect(optionProps.updateSelection).toEqual({ type: "boolean" });
+      expect(optionProps.updateSelection).toEqual({ type: ["boolean", "null"] });
 
       const parseOptions = optionProps.parseOptions as JsonSchema;
       expect(parseOptions.type).toBe("object");
       const parseProps = parseOptions.properties as Record<string, JsonSchema>;
-      expect(parseProps.preserveWhitespace).toEqual({ type: "boolean" });
+      expect(parseProps.preserveWhitespace).toEqual({ type: ["boolean", "null"] });
     });
   });
 
   describe("insertContentAt", () => {
-    it("requires position (integer >= 0) and value", () => {
+    it("requires position (integer >= 0) and value, optional options", () => {
       const entry = catalog.get("insertContentAt");
-      expect(entry.inputSchema.required).toEqual(["position", "value"]);
+      expect(entry.inputSchema.required).toEqual(["position", "value", "options"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       expect(inProps.position).toEqual({ type: "integer", minimum: 0 });
       expect(inProps.value).toEqual({ type: "string" });
+      expect(inProps.options).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
   });
 
   describe("setNode", () => {
     it("requires typeOrName, optional attrs", () => {
       const entry = catalog.get("setNode");
-      expect(entry.inputSchema.required).toEqual(["typeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["typeOrName", "attrs"]);
     });
   });
 
@@ -372,7 +372,7 @@ describe("SchemaCatalog", () => {
     it("accepts optional keepMarks boolean", () => {
       const entry = catalog.get("splitBlock");
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.keepMarks).toEqual({ type: "boolean" });
+      expect(inProps.keepMarks).toEqual({ type: ["boolean", "null"] });
     });
   });
 
@@ -388,18 +388,18 @@ describe("SchemaCatalog", () => {
   describe("wrapIn", () => {
     it("requires typeOrName, optional attrs", () => {
       const entry = catalog.get("wrapIn");
-      expect(entry.inputSchema.required).toEqual(["typeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["typeOrName", "attrs"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.attrs).toEqual({ type: "object" });
+      expect(inProps.attrs).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
   });
 
   describe("lift", () => {
     it("requires typeOrName, optional attrs", () => {
       const entry = catalog.get("lift");
-      expect(entry.inputSchema.required).toEqual(["typeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["typeOrName", "attrs"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.attrs).toEqual({ type: "object" });
+      expect(inProps.attrs).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
   });
 
@@ -409,18 +409,19 @@ describe("SchemaCatalog", () => {
     it("accepts optional emitUpdate boolean", () => {
       const entry = catalog.get("clearContent");
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.emitUpdate).toEqual({ type: "boolean" });
+      expect(inProps.emitUpdate).toEqual({ type: ["boolean", "null"] });
+      expect(entry.inputSchema.required).toEqual(["emitUpdate"]);
     });
   });
 
   describe("setContent", () => {
     it("requires value, optional emitUpdate and parseOptions", () => {
       const entry = catalog.get("setContent");
-      expect(entry.inputSchema.required).toEqual(["value"]);
+      expect(entry.inputSchema.required).toEqual(["value", "emitUpdate", "parseOptions"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       expect(inProps.value).toEqual({ type: "string" });
-      expect(inProps.emitUpdate).toEqual({ type: "boolean" });
-      expect(inProps.parseOptions).toEqual({ type: "object" });
+      expect(inProps.emitUpdate).toEqual({ type: ["boolean", "null"] });
+      expect(inProps.parseOptions).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
   });
 
@@ -455,8 +456,8 @@ describe("SchemaCatalog", () => {
       expect(entry.inputSchema.required).toEqual(["position"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       const position = inProps.position as JsonSchema;
-      expect(position.oneOf).toBeDefined();
-      const variants = position.oneOf as JsonSchema[];
+      expect(position.anyOf).toBeDefined();
+      const variants = position.anyOf as JsonSchema[];
       expect(variants).toHaveLength(2);
       expect(variants[0]).toEqual({ type: "integer" });
       expect(variants[1]).toMatchObject({
@@ -476,29 +477,30 @@ describe("SchemaCatalog", () => {
   });
 
   describe("focus", () => {
-    it("accepts optional position as string enum or integer", () => {
+    it("accepts optional position as string enum or integer or null", () => {
       const entry = catalog.get("focus");
-      expect(entry.inputSchema.required).toBeUndefined();
+      expect(entry.inputSchema.required).toEqual(["position"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       const position = inProps.position as JsonSchema;
-      expect(position.oneOf).toBeDefined();
-      const variants = position.oneOf as JsonSchema[];
-      expect(variants).toHaveLength(2);
+      expect(position.anyOf).toBeDefined();
+      const variants = position.anyOf as JsonSchema[];
+      expect(variants).toHaveLength(3);
       expect(variants[0]).toEqual({
         type: "string",
         enum: ["start", "end", "all"],
       });
       expect(variants[1]).toEqual({ type: "integer" });
+      expect(variants[2]).toEqual({ type: "null" });
     });
   });
 
   describe("selectText", () => {
     it("requires text, optional occurrence, outputs found/from/to", () => {
       const entry = catalog.get("selectText");
-      expect(entry.inputSchema.required).toEqual(["text"]);
+      expect(entry.inputSchema.required).toEqual(["text", "occurrence"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
       expect(inProps.text.type).toBe("string");
-      expect(inProps.occurrence.type).toBe("integer");
+      expect(inProps.occurrence.type).toEqual(["integer", "null"]);
       const outProps = entry.outputSchema.properties as Record<string, JsonSchema>;
       expect(outProps.found).toEqual({ type: "boolean" });
       expect(entry.outputSchema.required).toEqual(["found"]);
@@ -664,28 +666,28 @@ describe("SchemaCatalog", () => {
   // ── New content commands ──────────────────────────────────────────────
 
   describe("splitListItem", () => {
-    it("requires typeOrName", () => {
+    it("requires typeOrName, optional overrideAttrs", () => {
       const entry = catalog.get("splitListItem");
-      expect(entry.inputSchema.required).toEqual(["typeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["typeOrName", "overrideAttrs"]);
     });
   });
 
   describe("wrapInList", () => {
     it("requires typeOrName, optional attributes", () => {
       const entry = catalog.get("wrapInList");
-      expect(entry.inputSchema.required).toEqual(["typeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["typeOrName", "attributes"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.attributes).toEqual({ type: "object" });
+      expect(inProps.attributes).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
   });
 
   describe("toggleList", () => {
     it("requires listTypeOrName and itemTypeOrName, optional keepMarks and attributes", () => {
       const entry = catalog.get("toggleList");
-      expect(entry.inputSchema.required).toEqual(["listTypeOrName", "itemTypeOrName"]);
+      expect(entry.inputSchema.required).toEqual(["listTypeOrName", "itemTypeOrName", "keepMarks", "attributes"]);
       const inProps = entry.inputSchema.properties as Record<string, JsonSchema>;
-      expect(inProps.keepMarks).toEqual({ type: "boolean" });
-      expect(inProps.attributes).toEqual({ type: "object" });
+      expect(inProps.keepMarks).toEqual({ type: ["boolean", "null"] });
+      expect(inProps.attributes).toEqual({ type: ["object", "null"], properties: {}, additionalProperties: false });
     });
   });
 

@@ -18,7 +18,10 @@ app.use(express.json({ limit: "1mb" }));
 app.post("/api/chat", chatHandler);
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    defaultModel: process.env.LLM_MODEL || "openai:gpt-4o",
+  });
 });
 
 app.listen(port, () => {

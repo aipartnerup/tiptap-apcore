@@ -32,17 +32,60 @@ function entry(input: JsonSchema, output: JsonSchema): SchemaEntry {
   return { inputSchema: input, outputSchema: output };
 }
 
-/** Wraps properties + required into a strict object schema. */
+/**
+ * Wraps properties + required into a strict object schema.
+ *
+ * For OpenAI strict mode compatibility, ALL property keys are listed
+ * in `required`. Properties not in the caller's `required` list are
+ * made nullable (type becomes [originalType, "null"]) so they can
+ * accept null as a value.
+ */
 function inputSchema(
   properties: Record<string, JsonSchema>,
   required: string[] = [],
 ): JsonSchema {
+  const allKeys = Object.keys(properties);
+  if (allKeys.length === 0) {
+    return { type: "object", properties: {}, additionalProperties: false };
+  }
+  const requiredSet = new Set(required);
+  const processed: Record<string, JsonSchema> = {};
+  for (const [key, schema] of Object.entries(properties)) {
+    const strict = ensureStrictObject(schema);
+    if (requiredSet.has(key)) {
+      processed[key] = strict;
+    } else {
+      processed[key] = makeNullable(strict);
+    }
+  }
   return {
     type: "object",
-    properties,
-    required: required.length > 0 ? required : undefined,
+    properties: processed,
+    required: allKeys,
     additionalProperties: false,
   };
+}
+
+/**
+ * Ensure bare { type: "object" } schemas have explicit properties and
+ * additionalProperties: false, as required by OpenAI strict mode.
+ */
+function ensureStrictObject(schema: JsonSchema): JsonSchema {
+  if (schema.type === "object" && !schema.properties) {
+    return { ...schema, properties: {}, additionalProperties: false };
+  }
+  return schema;
+}
+
+/** Make a schema accept null in addition to its original type. */
+function makeNullable(schema: JsonSchema): JsonSchema {
+  const copy = { ...schema };
+  if (typeof copy.type === "string") {
+    copy.type = [copy.type, "null"];
+  } else if (copy.anyOf) {
+    copy.anyOf = [...(copy.anyOf as unknown[]), { type: "null" }];
+  }
+  return copy;
 }
 
 // ── Catalog class ──────────────────────────────────────────────────────────
@@ -331,12 +374,14 @@ export class SchemaCatalog {
                 parseOptions: {
                   type: "object",
                   properties: {
-                    preserveWhitespace: { type: "boolean" },
+                    preserveWhitespace: { type: ["boolean", "null"] },
                   },
+                  required: ["preserveWhitespace"],
                   additionalProperties: false,
                 },
-                updateSelection: { type: "boolean" },
+                updateSelection: { type: ["boolean", "null"] },
               },
+              required: ["parseOptions", "updateSelection"],
               additionalProperties: false,
             },
           },
@@ -528,7 +573,7 @@ export class SchemaCatalog {
         inputSchema(
           {
             position: {
-              oneOf: [
+              anyOf: [
                 { type: "integer" },
                 {
                   type: "object",
@@ -537,6 +582,7 @@ export class SchemaCatalog {
                     to: { type: "integer" },
                   },
                   required: ["from", "to"],
+                  additionalProperties: false,
                 },
               ],
             },
@@ -597,7 +643,7 @@ export class SchemaCatalog {
       entry(
         inputSchema({
           position: {
-            oneOf: [
+            anyOf: [
               { type: "string", enum: ["start", "end", "all"] },
               { type: "integer" },
             ],

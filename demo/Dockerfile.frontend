@@ -10,13 +10,13 @@ COPY tsconfig.json ./
 # Build root package
 RUN npm install --ignore-scripts && npm run build
 
-# Copy demo package files
-COPY demo/package.json ./demo/
-WORKDIR /app/demo
+# Copy frontend package files
+COPY demo/frontend/package.json ./demo/frontend/
+WORKDIR /app/demo/frontend
 RUN npm install
 
-# Copy demo source
-COPY demo/ ./
+# Copy frontend source
+COPY demo/frontend/ ./
 
 EXPOSE 5173
 

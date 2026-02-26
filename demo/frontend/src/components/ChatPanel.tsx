@@ -22,9 +22,18 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [model, setModel] = useState("openai:gpt-4o");
+  const [model, setModel] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.defaultModel) setModel(data.defaultModel);
+      })
+      .catch(() => setModel("openai:gpt-4o"));
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -120,7 +129,7 @@ export default function ChatPanel({
           className="model-input"
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          placeholder="openai:gpt-4o"
+          placeholder="provider:model"
         />
       </div>
 
