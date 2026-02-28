@@ -103,7 +103,7 @@ Open http://localhost:5173 in your browser.
 ### Step 5: Try it out
 
 1. Type a message in the **AI Chat** panel on the right (e.g. "Add a heading that says Hello World")
-2. Optionally change the model in the **Model** input (e.g. `anthropic:claude-sonnet-4-20250514`)
+2. Optionally change the model in the **Model** input (e.g. `anthropic:claude-sonnet-4-5`)
 3. Click **Send** — the AI will call TipTap tools and update the editor
 4. Try switching the ACL role to **readonly** and ask the AI to delete content — it will be blocked
 
@@ -152,7 +152,7 @@ Set `LLM_MODEL` to any model that supports tool use, or override per-request fro
 ### AI Chat (requires backend)
 - Send natural language requests to modify the document
 - AI uses TipTap tools via APCore executor
-- Switch models via text input (e.g. `openai:gpt-4o`, `anthropic:claude-sonnet-4-20250514`)
+- Switch models via text input (e.g. `openai:gpt-4o`, `anthropic:claude-sonnet-4-5`)
 - Tool call logs displayed inline in the chat and output log
 
 ### ACL Roles

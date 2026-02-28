@@ -5,7 +5,7 @@
  * destructive, selection, history) to their APCore annotation metadata.
  */
 
-import type { AnnotationEntry, ModuleAnnotations } from "../types.js";
+import type { AnnotationEntry, ModuleAnnotations, SelectionEffect } from "../types.js";
 
 // ------------------------------------------------------------------
 // Shared annotation templates per category
@@ -82,8 +82,9 @@ function entry(
   annotations: ModuleAnnotations,
   tags: string[],
   category: string,
+  selectionEffect: SelectionEffect = "preserve",
 ): AnnotationEntry {
-  return { annotations, tags, category };
+  return { annotations, tags, category, selectionEffect };
 }
 
 // ------------------------------------------------------------------
@@ -192,41 +193,96 @@ const HISTORY_COMMANDS: string[] = ["undo", "redo"];
 // Build the full catalog map
 // ------------------------------------------------------------------
 
+// ------------------------------------------------------------------
+// Per-command selection effect overrides.
+// Default: category-level (query=preserve, format=require, content=destroy,
+//          destructive=destroy, selection=preserve, history=preserve).
+// Commands listed here override the category default.
+// ------------------------------------------------------------------
+
+/** Mark-level format commands that require an active text selection */
+const MARK_FORMAT_COMMANDS = new Set([
+  "toggleBold", "toggleItalic", "toggleStrike", "toggleCode",
+  "toggleUnderline", "toggleSubscript", "toggleSuperscript", "toggleHighlight",
+  "setBold", "setItalic", "setStrike", "setCode", "setLink",
+  "setMark", "unsetMark", "unsetAllMarks",
+  "unsetBold", "unsetItalic", "unsetStrike", "unsetCode", "unsetLink",
+]);
+
+/** Node-level format commands that operate on block at cursor (no selection needed) */
+const NODE_FORMAT_COMMANDS = new Set([
+  "toggleHeading", "setHeading", "setParagraph",
+  "toggleBlockquote", "setBlockquote", "unsetBlockquote",
+  "toggleBulletList", "toggleOrderedList", "toggleTaskList", "toggleCodeBlock",
+  "setTextAlign", "clearNodes", "updateAttributes",
+]);
+
+/** Category-level defaults for selectionEffect */
+const CATEGORY_SELECTION_DEFAULTS: Record<string, SelectionEffect> = {
+  query: "preserve",
+  format: "require",      // overridden per-command below
+  content: "destroy",
+  destructive: "destroy",
+  selection: "preserve",
+  history: "preserve",
+};
+
+function getSelectionEffect(cmd: string, category: string): SelectionEffect {
+  // Per-command overrides for format category
+  if (category === "format") {
+    if (MARK_FORMAT_COMMANDS.has(cmd)) return "require";
+    if (NODE_FORMAT_COMMANDS.has(cmd)) return "none";
+    // Non-idempotent formats (setHardBreak, setHorizontalRule) insert content
+    return "destroy";
+  }
+  // Content commands that don't destroy selection
+  if (category === "content") {
+    // List manipulation and structural commands preserve cursor context
+    if (["splitBlock", "liftListItem", "sinkListItem", "wrapIn",
+         "joinBackward", "joinForward", "lift", "splitListItem",
+         "wrapInList", "toggleList", "exitCode", "setNode"].includes(cmd)) {
+      return "none";
+    }
+    return "destroy";
+  }
+  return CATEGORY_SELECTION_DEFAULTS[category] ?? "preserve";
+}
+
 function buildCatalog(): Map<string, AnnotationEntry> {
   const map = new Map<string, AnnotationEntry>();
 
   for (const cmd of QUERY_COMMANDS) {
-    map.set(cmd, entry(QUERY_ANNOTATIONS, ["query"], "query"));
+    map.set(cmd, entry(QUERY_ANNOTATIONS, ["query"], "query", getSelectionEffect(cmd, "query")));
   }
 
   for (const cmd of FORMAT_COMMANDS) {
-    map.set(cmd, entry(FORMAT_ANNOTATIONS, ["format"], "format"));
+    map.set(cmd, entry(FORMAT_ANNOTATIONS, ["format"], "format", getSelectionEffect(cmd, "format")));
   }
 
   for (const cmd of FORMAT_NON_IDEMPOTENT_COMMANDS) {
     map.set(
       cmd,
-      entry(FORMAT_NON_IDEMPOTENT_ANNOTATIONS, ["format"], "format"),
+      entry(FORMAT_NON_IDEMPOTENT_ANNOTATIONS, ["format"], "format", getSelectionEffect(cmd, "format")),
     );
   }
 
   for (const cmd of CONTENT_COMMANDS) {
-    map.set(cmd, entry(CONTENT_ANNOTATIONS, ["content"], "content"));
+    map.set(cmd, entry(CONTENT_ANNOTATIONS, ["content"], "content", getSelectionEffect(cmd, "content")));
   }
 
   for (const cmd of DESTRUCTIVE_COMMANDS) {
     map.set(
       cmd,
-      entry(DESTRUCTIVE_ANNOTATIONS, ["destructive"], "destructive"),
+      entry(DESTRUCTIVE_ANNOTATIONS, ["destructive"], "destructive", getSelectionEffect(cmd, "destructive")),
     );
   }
 
   for (const cmd of SELECTION_COMMANDS) {
-    map.set(cmd, entry(SELECTION_ANNOTATIONS, ["selection"], "selection"));
+    map.set(cmd, entry(SELECTION_ANNOTATIONS, ["selection"], "selection", getSelectionEffect(cmd, "selection")));
   }
 
   for (const cmd of HISTORY_COMMANDS) {
-    map.set(cmd, entry(HISTORY_ANNOTATIONS, ["history"], "history"));
+    map.set(cmd, entry(HISTORY_ANNOTATIONS, ["history"], "history", getSelectionEffect(cmd, "history")));
   }
 
   return map;

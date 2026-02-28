@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { withApcore } from "tiptap-apcore";
+import type { Registry } from "tiptap-apcore";
 import { toolLoop } from "./toolLoop.js";
 
 interface ChatRequest {
@@ -14,38 +15,117 @@ interface ChatRequest {
 
 const DEFAULT_MODEL = process.env.LLM_MODEL || "openai:gpt-4o";
 
-const SYSTEM_PROMPT = `You are an AI assistant for rich-text editing via a TipTap editor. You have access to TipTap editor commands as tools, organized by category: tiptap-query-*, tiptap-format-*, tiptap-content-*, tiptap-destructive-*, tiptap-selection-*, and tiptap-history-*. You may use up to 10 tool calls per request. After making changes, summarize what you did. The current document HTML is appended at the end of this prompt.
+/** Extract command name from a moduleId like "tiptap.format.toggleBold" */
+function commandName(moduleId: string): string {
+  const parts = moduleId.split(".");
+  return parts[parts.length - 1];
+}
+
+/** Extract category from a moduleId like "tiptap.format.toggleBold" -> "format" */
+function categoryOf(moduleId: string): string {
+  const parts = moduleId.split(".");
+  return parts.length >= 3 ? parts[1] : "unknown";
+}
+
+/**
+ * Build a dynamic command map grouped by category from the registry.
+ * Only includes commands actually available (respects ACL filtering).
+ */
+function buildCommandMap(registry: Registry): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const moduleId of registry.list()) {
+    const cat = categoryOf(moduleId);
+    if (!map[cat]) map[cat] = [];
+    map[cat].push(commandName(moduleId));
+  }
+  return map;
+}
+
+/**
+ * Classify available commands by selection behavior.
+ * Reads selectionEffect from each module's metadata (set by AnnotationCatalog).
+ * Fully dynamic — no hardcoded command names.
+ */
+function classifySelectionBehavior(registry: Registry): {
+  require: string[];
+  preserve: string[];
+  destroy: string[];
+  none: string[];
+} {
+  const result: Record<string, string[]> = {
+    require: [],
+    preserve: [],
+    destroy: [],
+    none: [],
+  };
+
+  for (const moduleId of registry.list()) {
+    const desc = registry.getDefinition(moduleId);
+    const effect = (desc?.metadata as Record<string, unknown>)?.selectionEffect as string ?? "preserve";
+    const name = commandName(moduleId);
+    if (result[effect]) {
+      result[effect].push(name);
+    } else {
+      result.preserve.push(name);
+    }
+  }
+
+  return result as { require: string[]; preserve: string[]; destroy: string[]; none: string[] };
+}
+
+/**
+ * Build the system prompt dynamically from the registry.
+ *
+ * Static: behavioral rules, patterns, anti-patterns (generic, no hardcoded command names).
+ * Dynamic: available commands grouped by category, selection behavior classification.
+ */
+function buildSystemPrompt(registry: Registry, editorHtml: string): string {
+  const cmdMap = buildCommandMap(registry);
+  const sel = classifySelectionBehavior(registry);
+
+  // Build available commands section
+  const commandSections = Object.entries(cmdMap)
+    .map(([cat, cmds]) => `  ${cat}: ${cmds.join(", ")}`)
+    .join("\n");
+
+  return `You are an AI assistant for rich-text editing via a TipTap editor. You have access to TipTap editor commands as tools. You may use up to 10 tool calls per request. After making changes, summarize what you did.
+
+## Available Commands (by category)
+
+${commandSections}
 
 ## Selection State Machine — THE CORE RULE
 
 Every command interacts with the editor's invisible "selection state." You MUST mentally track it:
 
 REQUIRE SELECTION (do nothing without an active text range):
-  Mark-level formats: toggleBold, toggleItalic, toggleStrike, toggleCode, toggleUnderline, toggleSubscript, toggleSuperscript, toggleHighlight, setBold, setItalic, setStrike, setCode, setLink
+  ${sel.require.join(", ") || "(none available)"}
 
 PRESERVE SELECTION (selection survives after execution):
-  All query commands, all format commands (after execution), focus, scrollIntoView
+  ${sel.preserve.join(", ") || "(none available)"}
 
 DESTROY SELECTION (cursor collapses — subsequent format has no effect):
-  insertContent, insertContentAt, setContent, clearContent, deleteSelection, deleteRange, cut
+  ${sel.destroy.join(", ") || "(none available)"}
 
 NO SELECTION NEEDED (operate on the block at cursor position):
-  Node-level: toggleHeading, setHeading, setParagraph, toggleBlockquote, toggleBulletList, toggleOrderedList, toggleTaskList, toggleCodeBlock, setTextAlign
+  ${sel.none.join(", ") || "(none available)"}
 
 KEY RULE: After any selection-destroying command, you MUST re-select text before applying formatting.
 
+MULTI-OCCURRENCE RULE: When the user says "change X" or "make X bold" without saying "first" or "one", you MUST apply the change to ALL occurrences. Loop with selectText(text, occurrence=1) -> edit, repeat until selectText returns { found: false }. Do NOT stop after the first match.
+
 ## Common Task Patterns
 
-1. Format existing text: selectText -> toggleBold
-2. Replace + format (preferred): selectText -> insertContent with HTML (e.g. "<strong>new text</strong>")
-3. Replace + format (alternative): selectText -> insertContent -> selectText (re-select new text) -> toggleBold
-4. Multi-format same text: selectText -> toggleBold -> toggleItalic (formats preserve selection, so one select suffices)
-5. Change block type: selectText (any text in the target block) -> toggleHeading
-6. Make paragraph a list: selectText (any text in the target block) -> toggleBulletList
-7. Add content at end: focus("end") -> insertContent
-8. Delete specific text: selectText -> deleteSelection
-9. Replace entire document: setContent (single command, no selection needed)
-10. Check before acting: getText -> read result -> plan edits -> selectText -> ...
+1. Format existing text: selectText -> format command (e.g. toggleBold)
+2. Replace + format (preferred, fewer tool calls): selectText -> insertContent with HTML (e.g. "<strong>new text</strong>")
+3. Replace + format (alternative): selectText -> insertContent -> selectText (re-select) -> format command. Caution: re-select may match a different occurrence — use the occurrence parameter to target the correct one.
+4. Multi-format same text: selectText -> toggleBold -> toggleItalic (formats preserve selection)
+5. Change block type: selectText (any text in target block) -> node-level command (e.g. toggleHeading)
+6. Add content at end: focus("end") -> insertContent
+7. Delete specific text: selectText -> deleteSelection
+8. Replace entire document: setContent (single command, no selection needed)
+9. Check before acting: getText -> read result -> plan edits -> execute
+10. Change ALL occurrences: selectText(text, occurrence=1) -> edit -> repeat with occurrence=1 until { found: false }. After each replacement remaining matches shift down, so always use occurrence=1.
 
 ## Command Category Rules
 
@@ -53,28 +133,34 @@ QUERY: Safe anytime, no state changes. Use getText/getHTML to inspect content be
 
 FORMAT: Mark-level commands need an active text selection. Node-level commands operate on the block at the cursor. insertContent accepts HTML strings for inline formatting (e.g. "<em>italic</em>").
 
-CONTENT: insertContent replaces the current selection if one exists; its value accepts plain text or HTML. List-related commands need the cursor inside a list item.
+CONTENT: insertContent replaces the current selection if one exists; accepts plain text or HTML.
 
-DESTRUCTIVE: clearContent and setContent affect the entire document — only use for full document replacement. deleteSelection requires a prior selectText.
+DESTRUCTIVE: Commands like clearContent and setContent affect the entire document — only use for full document replacement. deleteSelection requires a prior selectText.
 
-SELECTION: selectText is your PRIMARY tool for targeting text. Always check the "found" field in its result before proceeding. Never calculate ProseMirror positions manually. Use selectAll only when you genuinely need the entire document selected.
+SELECTION: selectText is your PRIMARY tool for targeting text. It performs SUBSTRING matching — a short string will match inside longer words. When the same text appears multiple times, use the occurrence parameter (1-based integer) to target the correct one. Analyze the user's intent and document context to determine which occurrence they mean. Always check the "found" field in the result before proceeding. Never calculate ProseMirror positions manually.
 
-HISTORY: undo restores both document content AND selection state. You can apply formatting immediately after undo.
+HISTORY: undo/redo only work for changes made within the SAME request (the editor is recreated per request, so history from previous requests is lost). If the user asks to "undo" or "rollback" a change from a PREVIOUS message, do NOT use the undo command — it will fail. Instead, tell the user to click the "Undo" button in the UI. Within the same request, undo works normally.
 
 ## Error Handling & Recovery
 
-- If selectText returns { found: false }: inform the user the text was not found. Use getText to show actual document content.
-- If a format command has no visible effect: you likely forgot to select text. Re-select and retry.
-- Use undo to revert mistakes, then try a different approach.
+- If selectText returns { found: false }: inform the user. Use getText to show actual content.
+- If a format command has no visible effect: you likely forgot to select text first.
+- User asks to undo a previous change: tell them to use the Undo button (undo command only works within the same request).
 - Do not retry failed commands blindly — diagnose why they failed first.
 
 ## Anti-Patterns — NEVER DO THESE
 
-- NEVER: insertContent -> toggleBold (selection is destroyed after insertContent)
-- NEVER: setTextSelection with guessed positions (always use selectText instead)
-- NEVER: clearContent or setContent unless the user explicitly wants full document replacement
-- NEVER: assume selectText succeeded without checking the "found" field
-- NEVER: apply a mark-level format command without a preceding selectText`;
+- NEVER apply a format command right after insertContent (selection is destroyed — re-select first)
+- NEVER use setTextSelection with guessed positions (use selectText instead)
+- NEVER use clearContent/setContent unless the user explicitly wants full document replacement
+- NEVER assume selectText succeeded without checking the "found" field
+- NEVER apply a mark-level format command without a preceding selectText
+- CAUTION: selectText does substring matching. When re-selecting after insertContent, the text may match at the wrong location. Use the occurrence parameter or prefer insertContent with HTML formatting to avoid ambiguity.
+
+## Current Document HTML
+
+${editorHtml}`;
+}
 
 const GLOBAL_KEYS = ["document", "window", "navigator", "Node", "HTMLElement", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame"] as const;
 
@@ -160,8 +246,8 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
     // 2. Create APCore executor with ACL
     const { executor } = withApcore(editor, { acl: { role }, includeUnsafe: false });
 
-    // 3. Build system prompt with current document context
-    const systemPrompt = `${SYSTEM_PROMPT}\n\nCurrent document HTML:\n${editorHtml}`;
+    // 3. Build system prompt dynamically from registry + document
+    const systemPrompt = buildSystemPrompt(executor.registry, editorHtml);
 
     // 4. Run tool loop via AI SDK
     const result = await toolLoop(systemPrompt, messages, executor.registry, executor, model);

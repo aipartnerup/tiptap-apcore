@@ -109,11 +109,19 @@ export interface ExtensionCommandInfo {
   extensionType: "node" | "mark" | "extension";
 }
 
+/** How a command affects the editor's text selection */
+export type SelectionEffect =
+  | "require"   // needs an active text selection to have any effect
+  | "preserve"  // selection survives after execution
+  | "destroy"   // cursor collapses, selection is lost
+  | "none";     // operates on block at cursor, no selection needed
+
 /** Annotation catalog entry */
 export interface AnnotationEntry {
   annotations: ModuleAnnotations;
   tags: string[];
   category: string;
+  selectionEffect: SelectionEffect;
 }
 
 /** Schema catalog entry */

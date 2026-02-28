@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",
+    "@ai-sdk/google": "^1.2.22",
     "@ai-sdk/openai": "^1.0.0",
     "@tiptap/core": "^2.10.0",
     "@tiptap/pm": "^2.10.0",

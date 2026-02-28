@@ -16,6 +16,7 @@ export type {
   AclConfig,
   ExtensionCommandInfo,
   AnnotationEntry,
+  SelectionEffect,
   SchemaEntry,
   Logger,
   EditorLike,

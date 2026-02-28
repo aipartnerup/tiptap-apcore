@@ -77,6 +77,9 @@ export class ModuleBuilder {
       tags: annotationEntry?.tags ?? ["unknown"],
       version: "0.1.0",
       documentation: `https://tiptap.dev/docs/editor/api/commands/${commandName}`,
+      metadata: {
+        selectionEffect: annotationEntry?.selectionEffect ?? "preserve",
+      },
     };
   }
 

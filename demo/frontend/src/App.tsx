@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef } from "react";
+
+const MAX_HISTORY = 50;
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import {
   withApcore,
@@ -18,8 +20,10 @@ export default function App() {
   const [executor, setExecutor] = useState<Executor | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [historyCount, setHistoryCount] = useState(0);
   const editorRef = useRef<TiptapEditor | null>(null);
   const apcoreRef = useRef<ApcoreResult | null>(null);
+  const htmlHistoryRef = useRef<string[]>([]);
 
   const addLog = useCallback((entry: LogEntry) => {
     setLogs((prev) => [entry, ...prev].slice(0, 100));
@@ -202,6 +206,17 @@ export default function App() {
 
   const handleEditorUpdate = useCallback(
     async (html: string) => {
+      // Save current HTML to history before applying update
+      if (editorRef.current) {
+        const currentHtml = editorRef.current.getHTML();
+        const history = htmlHistoryRef.current;
+        history.push(currentHtml);
+        if (history.length > MAX_HISTORY) {
+          history.splice(0, history.length - MAX_HISTORY);
+        }
+        setHistoryCount(history.length);
+      }
+
       if (!executor) return;
       try {
         await executor.call("tiptap.destructive.setContent", { value: html });
@@ -224,6 +239,31 @@ export default function App() {
     },
     [executor, addLog],
   );
+
+  const handleUndo = useCallback(() => {
+    const history = htmlHistoryRef.current;
+    if (history.length === 0) return;
+    const lastHtml = history.pop()!;
+    setHistoryCount(history.length);
+    if (editorRef.current) {
+      editorRef.current.commands.setContent(lastHtml);
+      addLog({
+        type: "info",
+        message: `Undo: restored previous version (${history.length} remaining)`,
+        timestamp: Date.now(),
+      });
+    }
+  }, [addLog]);
+
+  const handleClearHistory = useCallback(() => {
+    htmlHistoryRef.current = [];
+    setHistoryCount(0);
+    addLog({
+      type: "info",
+      message: "Edit history cleared",
+      timestamp: Date.now(),
+    });
+  }, [addLog]);
 
   return (
     <>
@@ -250,6 +290,10 @@ export default function App() {
           role={role}
           onEditorUpdate={handleEditorUpdate}
           onLog={addLog}
+          onUndo={handleUndo}
+          onClearHistory={handleClearHistory}
+          historyCount={historyCount}
+          maxHistory={MAX_HISTORY}
         />
 
         {/* Right-2: Demo scenarios + Log */}

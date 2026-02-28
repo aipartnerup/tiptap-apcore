@@ -7,11 +7,27 @@ interface ChatMessage {
   toolCalls?: { moduleId: string; inputs: Record<string, unknown>; result: Record<string, unknown> }[];
 }
 
+interface ProviderModel {
+  id: string;
+  name: string;
+}
+
+interface ProviderInfo {
+  id: string;
+  name: string;
+  configured: boolean;
+  models: ProviderModel[];
+}
+
 interface ChatPanelProps {
   getEditorHtml: () => string;
   role: "readonly" | "editor" | "admin";
   onEditorUpdate: (html: string) => void;
   onLog: (entry: LogEntry) => void;
+  onUndo: () => void;
+  onClearHistory: () => void;
+  historyCount: number;
+  maxHistory: number;
 }
 
 export default function ChatPanel({
@@ -19,10 +35,15 @@ export default function ChatPanel({
   role,
   onEditorUpdate,
   onLog,
+  onUndo,
+  onClearHistory,
+  historyCount,
+  maxHistory,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [model, setModel] = useState("");
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -31,6 +52,7 @@ export default function ChatPanel({
       .then((r) => r.json())
       .then((data) => {
         if (data.defaultModel) setModel(data.defaultModel);
+        if (data.providers) setProviders(data.providers);
       })
       .catch(() => setModel("openai:gpt-4o"));
   }, []);
@@ -122,15 +144,64 @@ export default function ChatPanel({
       <h2>AI Chat</h2>
 
       <div className="chat-model-selector">
-        <label htmlFor="model-input">Model:</label>
-        <input
-          id="model-input"
-          type="text"
-          className="model-input"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder="provider:model"
-        />
+        <label htmlFor="model-select">Model:</label>
+        {providers.length > 0 ? (
+          <select
+            id="model-select"
+            className="model-select"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+          >
+            {providers.map((provider) => (
+              <optgroup
+                key={provider.id}
+                label={`${provider.name}${provider.configured ? "" : " (no key)"}`}
+              >
+                {provider.models.map((m) => (
+                  <option
+                    key={m.id}
+                    value={m.id}
+                    disabled={!provider.configured}
+                  >
+                    {m.name}{!provider.configured ? " — key not set" : ""}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        ) : (
+          <input
+            id="model-select"
+            type="text"
+            className="model-select"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="provider:model"
+          />
+        )}
+      </div>
+
+      <div className="chat-history-controls">
+        <button
+          className="chat-undo-btn"
+          onClick={onUndo}
+          disabled={historyCount === 0}
+          title="Undo last AI edit"
+        >
+          Undo
+        </button>
+        <span className="chat-history-count">
+          {historyCount}/{maxHistory}
+        </span>
+        {historyCount > 0 && (
+          <button
+            className="chat-clear-history-btn"
+            onClick={onClearHistory}
+            title="Clear edit history"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       <div className="chat-messages">
