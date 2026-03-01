@@ -1,4 +1,4 @@
-import { generateText, tool, jsonSchema, type CoreTool } from "ai";
+import { generateText, tool, jsonSchema, type CoreTool, NoSuchToolError } from "ai";
 import { createProviderRegistry } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -164,32 +164,45 @@ export async function toolLoop(
 
   const allToolCalls: ToolCallLog[] = [];
 
-  const result = await generateText({
-    model,
-    system: systemPrompt,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
-    tools,
-    maxSteps: 10,
-    onStepFinish: (step) => {
-      const stepToolCalls = step.toolCalls as { toolName: string; args: unknown }[] | undefined;
-      const stepToolResults = step.toolResults as { result: unknown }[] | undefined;
-      if (!stepToolCalls || stepToolCalls.length === 0) return;
+  try {
+    const result = await generateText({
+      model,
+      system: systemPrompt,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      tools,
+      maxSteps: 10,
+      onStepFinish: (step) => {
+        const stepToolCalls = step.toolCalls as { toolName: string; args: unknown }[] | undefined;
+        const stepToolResults = step.toolResults as { result: unknown }[] | undefined;
+        if (!stepToolCalls || stepToolCalls.length === 0) return;
 
-      for (let i = 0; i < stepToolCalls.length; i++) {
-        const tc = stepToolCalls[i];
-        const moduleId = tc.toolName.replaceAll("-", ".");
-        const resultValue = stepToolResults?.[i]?.result ?? stepToolResults?.[i] ?? {};
-        allToolCalls.push({
-          moduleId,
-          inputs: tc.args as Record<string, unknown>,
-          result: resultValue as Record<string, unknown>,
-        });
-      }
-    },
-  });
+        for (let i = 0; i < stepToolCalls.length; i++) {
+          const tc = stepToolCalls[i];
+          const moduleId = tc.toolName.replaceAll("-", ".");
+          const resultValue = stepToolResults?.[i]?.result ?? stepToolResults?.[i] ?? {};
+          allToolCalls.push({
+            moduleId,
+            inputs: tc.args as Record<string, unknown>,
+            result: resultValue as Record<string, unknown>,
+          });
+        }
+      },
+    });
 
-  return {
-    reply: result.text,
-    toolCalls: allToolCalls,
-  };
+    return {
+      reply: result.text,
+      toolCalls: allToolCalls,
+    };
+  } catch (err) {
+    // Model attempted to call a tool that is not available for the current role.
+    // Return a graceful error reply instead of crashing with a 500.
+    if (err instanceof NoSuchToolError) {
+      const available = Object.keys(tools).map((t) => t.replaceAll("-", ".")).join(", ");
+      return {
+        reply: `I'm unable to complete this request. The action you requested requires permissions that are not available for your current role. Available commands: ${available}.`,
+        toolCalls: allToolCalls,
+      };
+    }
+    throw err;
+  }
 }

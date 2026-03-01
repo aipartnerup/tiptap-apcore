@@ -30,6 +30,9 @@ interface ChatPanelProps {
   maxHistory: number;
 }
 
+const UNDO_PATTERNS = /^(undo|cancel|revert)$/i;
+const REDO_PATTERNS = /^(redo)$/i;
+
 export default function ChatPanel({
   getEditorHtml,
   role,
@@ -69,6 +72,24 @@ export default function ChatPanel({
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
+
+    // Fast path: handle undo/cancel/redo locally without API call
+    if (UNDO_PATTERNS.test(text)) {
+      onUndo();
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Done — reverted to the previous version." },
+      ]);
+      return;
+    }
+    if (REDO_PATTERNS.test(text)) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Redo is not supported via chat. Use Ctrl+Y / Cmd+Shift+Z in the editor." },
+      ]);
+      return;
+    }
+
     setLoading(true);
 
     try {

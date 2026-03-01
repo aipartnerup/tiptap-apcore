@@ -66,5 +66,14 @@
     "model-context-protocol",
     "rich-text",
     "prosemirror"
-  ]
+  ],
+  "author": "aipartnerup",
+  "homepage": "https://aipartnerup.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aipartnerup/tiptap-apcore.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aipartnerup/tiptap-apcore/issues"
+  }
 }

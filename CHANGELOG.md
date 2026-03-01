@@ -110,7 +110,7 @@ Initial release of **tiptap-apcore** — let AI safely control your TipTap edito
 
 #### Test Suite
 
-- 923 tests across 10 test files (9 unit, 1 integration).
+- 925 tests across 10 test files (9 unit, 1 integration).
 - Coverage: unit tests for every public class and function.
 - Components tested: `TiptapModuleError`, `AnnotationCatalog`, `SchemaCatalog`, `ModuleBuilder`, `ExtensionScanner`, `TiptapRegistry`, `AclGuard`, `TiptapExecutor`, `withApcore`, integration workflows.
 
@@ -120,4 +120,4 @@ Initial release of **tiptap-apcore** — let AI safely control your TipTap edito
 - **Runtime**: Node.js >= 18.0.0.
 - **License**: Apache-2.0.
 
-[0.1.0]: https://github.com/AiPartnerUp/tiptap-apcore/releases/tag/v0.1.0
+[0.1.0]: https://github.com/aipartnerup/tiptap-apcore/releases/tag/v0.1.0

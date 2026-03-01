@@ -2,8 +2,8 @@ import type { Request, Response } from "express";
 import { JSDOM } from "jsdom";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { withApcore } from "tiptap-apcore";
-import type { Registry } from "tiptap-apcore";
+import { withApcore, AclGuard } from "tiptap-apcore";
+import type { Registry, AclConfig } from "tiptap-apcore";
 import { toolLoop } from "./toolLoop.js";
 
 interface ChatRequest {
@@ -74,6 +74,28 @@ function classifySelectionBehavior(registry: Registry): {
 }
 
 /**
+ * Create a registry view that only surfaces modules the given AclGuard permits.
+ * Prevents the AI from seeing (and attempting to call) commands it cannot use.
+ */
+function filterRegistryByAcl(registry: Registry, guard: AclGuard): Registry {
+  return new Proxy(registry, {
+    get(target: Registry, prop: string | symbol) {
+      if (prop === "list") {
+        return (options?: { tags?: string[] | null; prefix?: string | null }) =>
+          target.list(options).filter((id) => {
+            const desc = target.getDefinition(id);
+            return desc != null && guard.isAllowed(id, desc);
+          });
+      }
+      const value = (target as Record<string | symbol, unknown>)[prop];
+      return typeof value === "function"
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+}
+
+/**
  * Build the system prompt dynamically from the registry.
  *
  * Static: behavioral rules, patterns, anti-patterns (generic, no hardcoded command names).
@@ -117,8 +139,8 @@ MULTI-OCCURRENCE RULE: When the user says "change X" or "make X bold" without sa
 ## Common Task Patterns
 
 1. Format existing text: selectText -> format command (e.g. toggleBold)
-2. Replace + format (preferred, fewer tool calls): selectText -> insertContent with HTML (e.g. "<strong>new text</strong>")
-3. Replace + format (alternative): selectText -> insertContent -> selectText (re-select) -> format command. Caution: re-select may match a different occurrence — use the occurrence parameter to target the correct one.
+2. Replace + format — THE PREFERRED PATTERN: selectText -> ONE insertContent with HTML (e.g. "<strong>new text</strong>"). This is a single operation that replaces the selection AND applies formatting. Example: to change "APCore" to bold lowercase, do: selectText("APCore") -> insertContent("<strong>apcore</strong>"). Done — do NOT call insertContent again.
+3. Replace + format (alternative, error-prone): selectText -> insertContent (plain) -> selectText (re-select) -> format command. Caution: re-select may match a different occurrence — use the occurrence parameter to target the correct one.
 4. Multi-format same text: selectText -> toggleBold -> toggleItalic (formats preserve selection)
 5. Change block type: selectText (any text in target block) -> node-level command (e.g. toggleHeading)
 6. Add content at end: focus("end") -> insertContent
@@ -150,6 +172,7 @@ HISTORY: undo/redo only work for changes made within the SAME request (the edito
 
 ## Anti-Patterns — NEVER DO THESE
 
+- NEVER call insertContent twice for a single replacement. If you need to replace text AND format it, use ONE insertContent with HTML markup (Pattern 2). Calling insertContent(plain) then insertContent(formatted) will DUPLICATE the text.
 - NEVER apply a format command right after insertContent (selection is destroyed — re-select first)
 - NEVER use setTextSelection with guessed positions (use selectText instead)
 - NEVER use clearContent/setContent unless the user explicitly wants full document replacement
@@ -235,6 +258,30 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  // Fast path: detect undo/cancel/redo shortcuts and return immediately
+  // without creating an editor or calling the LLM.
+  const UNDO_PATTERNS = /^(undo|cancel|revert)$/i;
+  const REDO_PATTERNS = /^(redo)$/i;
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  const lastText = lastUserMsg?.content.trim() ?? "";
+
+  if (UNDO_PATTERNS.test(lastText)) {
+    res.json({
+      reply: "Done — reverted to the previous version. (Note: the server cannot undo across requests. Use the frontend Undo button for full undo support.)",
+      updatedHtml: editorHtml,
+      toolCalls: [],
+    });
+    return;
+  }
+  if (REDO_PATTERNS.test(lastText)) {
+    res.json({
+      reply: "Redo is not supported via the chat API. Use Ctrl+Y / Cmd+Shift+Z in the editor.",
+      updatedHtml: editorHtml,
+      toolCalls: [],
+    });
+    return;
+  }
+
   const model = requestModel || DEFAULT_MODEL;
 
   let editor: Editor | null = null;
@@ -243,14 +290,32 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
     // 1. Create headless TipTap editor
     editor = createHeadlessEditor(editorHtml);
 
-    // 2. Create APCore executor with ACL
-    const { executor } = withApcore(editor, { acl: { role }, includeUnsafe: false });
+    // 2. Create APCore executor with ACL.
+    // "editor" role gets scoped delete commands (deleteSelection, deleteCurrentNode)
+    // in addition to its normal allowed categories. Broad destructive commands
+    // (clearContent, setContent, deleteRange, cut) remain admin-only.
+    const aclConfig: AclConfig = role === "editor"
+      ? {
+        role,
+        allowModules: [
+          "tiptap.destructive.deleteSelection",
+          "tiptap.destructive.deleteCurrentNode",
+        ],
+      }
+      : { role };
+
+    const { executor, registry } = withApcore(editor, { acl: aclConfig, includeUnsafe: false });
+
+    // Filter registry so AI only sees commands it can actually call.
+    // This prevents the AI from discovering and attempting restricted commands.
+    const aclGuard = new AclGuard(aclConfig);
+    const filteredRegistry = filterRegistryByAcl(registry, aclGuard);
 
     // 3. Build system prompt dynamically from registry + document
-    const systemPrompt = buildSystemPrompt(executor.registry, editorHtml);
+    const systemPrompt = buildSystemPrompt(filteredRegistry, editorHtml);
 
     // 4. Run tool loop via AI SDK
-    const result = await toolLoop(systemPrompt, messages, executor.registry, executor, model);
+    const result = await toolLoop(systemPrompt, messages, filteredRegistry, executor, model);
 
     // 5. Return response
     res.json({

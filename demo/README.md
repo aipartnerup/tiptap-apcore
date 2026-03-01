@@ -55,7 +55,7 @@ You need **two terminals** — one for the backend, one for the frontend.
 ### Prerequisites
 
 - Node.js >= 18
-- An API key from [OpenAI](https://platform.openai.com/api-keys) and/or [Anthropic](https://console.anthropic.com/settings/keys)
+- An API key from [OpenAI](https://platform.openai.com/api-keys), [Anthropic](https://console.anthropic.com/settings/keys), and/or [Google AI](https://aistudio.google.com/apikey)
 
 ### Step 1: Build the root package
 
@@ -78,6 +78,7 @@ Edit `demo/.env` and fill in your API key(s):
 LLM_MODEL=openai:gpt-4o          # provider:model format
 OPENAI_API_KEY=sk-proj-...        # set for OpenAI models
 # ANTHROPIC_API_KEY=sk-ant-api03-... # set for Anthropic models
+# GOOGLE_GENERATIVE_AI_API_KEY=... # set for Google Gemini models
 ```
 
 ### Step 3: Start the backend (Terminal 1)
@@ -132,14 +133,16 @@ All env vars are read from `demo/.env`.
 | `LLM_MODEL` | Default model in `provider:model` format | `openai:gpt-4o` | No |
 | `OPENAI_API_KEY` | OpenAI API key | — | Yes, if using OpenAI models |
 | `ANTHROPIC_API_KEY` | Anthropic API key | — | Yes, if using Anthropic models |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI API key | — | Yes, if using Gemini models |
 | `PORT` | Backend server port | `3001` | No |
 
 ### Supported models
 
 Set `LLM_MODEL` to any model that supports tool use, or override per-request from the Chat panel:
 
-**OpenAI**: `openai:gpt-4o` (default), `openai:gpt-4o-mini`, `openai:gpt-4-turbo`, `openai:o3-mini`
+**OpenAI**: `openai:gpt-4o` (default), `openai:gpt-4.1`, `openai:gpt-5.1`
 **Anthropic**: `anthropic:claude-sonnet-4-5`, `anthropic:claude-haiku-4-5`, `anthropic:claude-opus-4-5`
+**Google Gemini**: `google:gemini-2.5-flash`, `google:gemini-2.5-pro`, `google:gemini-2.0-flash`
 
 ## Features
 

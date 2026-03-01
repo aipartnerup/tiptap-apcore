@@ -700,6 +700,48 @@ describe("TiptapExecutor", () => {
         expect((err as TiptapModuleError).details?.commandName).toBe("toggleBold");
       }
     });
+
+    it("undo returns { success: false } instead of throwing when history is empty", async () => {
+      const failChain: any = new Proxy(
+        {},
+        {
+          get: (_target, prop) => {
+            if (prop === "run") return () => false;
+            if (prop === "focus") return () => failChain;
+            return (..._args: unknown[]) => failChain;
+          },
+        },
+      );
+
+      const { registry, executor } = setup({ chain: () => failChain });
+      registry.register(
+        makeDescriptor("tiptap.history.undo", { tags: ["history"] }),
+      );
+
+      const result = await executor.call("tiptap.history.undo", {});
+      expect(result).toEqual({ success: false, reason: "Nothing to undo" });
+    });
+
+    it("redo returns { success: false } instead of throwing when history is empty", async () => {
+      const failChain: any = new Proxy(
+        {},
+        {
+          get: (_target, prop) => {
+            if (prop === "run") return () => false;
+            if (prop === "focus") return () => failChain;
+            return (..._args: unknown[]) => failChain;
+          },
+        },
+      );
+
+      const { registry, executor } = setup({ chain: () => failChain });
+      registry.register(
+        makeDescriptor("tiptap.history.redo", { tags: ["history"] }),
+      );
+
+      const result = await executor.call("tiptap.history.redo", {});
+      expect(result).toEqual({ success: false, reason: "Nothing to redo" });
+    });
   });
 
   // ─── Error: ACL_DENIED ────────────────────────────────────────

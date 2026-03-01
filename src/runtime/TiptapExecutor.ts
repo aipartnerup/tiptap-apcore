@@ -201,6 +201,11 @@ export class TiptapExecutor implements Executor {
     const success = resultChain.run();
 
     if (!success) {
+      // undo/redo return false when history stack is empty — this is a normal
+      // condition (editor is recreated per request), not an execution error.
+      if (commandName === "undo" || commandName === "redo") {
+        return { success: false, reason: `Nothing to ${commandName}` };
+      }
       throw new TiptapModuleError(ErrorCodes.COMMAND_FAILED,
         `Command '${commandName}' failed`, { moduleId, commandName });
     }

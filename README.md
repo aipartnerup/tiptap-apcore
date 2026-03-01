@@ -14,7 +14,7 @@ Let AI safely control your TipTap editor via the [Model Context Protocol (MCP)](
 - **Safety annotations** — every command tagged `readonly`, `destructive`, `idempotent`, `requiresApproval`, `openWorld`, `streaming`
 - **Strict JSON Schemas** — `inputSchema` + `outputSchema` with `additionalProperties: false` for all known commands
 - **Dynamic re-discovery** — call `registry.discover()` to pick up extensions added at runtime
-- **768 tests**, 99.7% statement coverage
+- **925 tests**, 99.7% statement coverage
 
 ## Installation
 
