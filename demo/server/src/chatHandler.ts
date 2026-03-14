@@ -284,6 +284,12 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
 
   const model = requestModel || DEFAULT_MODEL;
 
+  // Validate model format: must be "provider:model-name"
+  if (!/^[a-z]+:.+$/.test(model)) {
+    res.status(400).json({ error: `Invalid model format '${model}'. Expected 'provider:model-name' (e.g. 'openai:gpt-4o').` });
+    return;
+  }
+
   let editor: Editor | null = null;
 
   try {

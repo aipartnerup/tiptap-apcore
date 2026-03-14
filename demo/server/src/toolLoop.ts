@@ -116,8 +116,9 @@ function sanitizeNode(node: Record<string, unknown>): Record<string, unknown> {
 /**
  * Convert APCore modules into AI SDK tool definitions.
  *
- * Tool names use hyphens (e.g. "tiptap-format-toggleBold") because
- * dots are not valid in AI SDK tool names.
+ * Tool names use double-hyphens (e.g. "tiptap--format--toggleBold") because
+ * dots are not valid in AI SDK tool names. Double-hyphens ensure lossless
+ * round-tripping even if a segment contains a single hyphen.
  */
 function buildTools(apcoreRegistry: Registry, executor: Executor, isGemini: boolean) {
   const tools: Record<string, CoreTool> = {};
@@ -126,7 +127,9 @@ function buildTools(apcoreRegistry: Registry, executor: Executor, isGemini: bool
     const descriptor = apcoreRegistry.getDefinition(moduleId);
     if (!descriptor) continue;
 
-    const toolName = moduleId.replaceAll(".", "-");
+    // Use double-hyphen as separator so single hyphens inside segment names
+    // survive the round-trip (e.g. "tiptap.format.toggleBold" → "tiptap--format--toggleBold").
+    const toolName = moduleId.replaceAll(".", "--");
 
     // Ensure schema has properties (some providers require it)
     let schema = { ...descriptor.inputSchema } as Record<string, unknown>;
@@ -142,7 +145,7 @@ function buildTools(apcoreRegistry: Registry, executor: Executor, isGemini: bool
       description: descriptor.description,
       parameters: jsonSchema(schema),
       execute: async (args) => {
-        const denormalized = toolName.replaceAll("-", ".");
+        const denormalized = toolName.replaceAll("--", ".");
         return executor.call(denormalized, args as Record<string, unknown>);
       },
     });
@@ -178,8 +181,8 @@ export async function toolLoop(
 
         for (let i = 0; i < stepToolCalls.length; i++) {
           const tc = stepToolCalls[i];
-          const moduleId = tc.toolName.replaceAll("-", ".");
-          const resultValue = stepToolResults?.[i]?.result ?? stepToolResults?.[i] ?? {};
+          const moduleId = tc.toolName.replaceAll("--", ".");
+          const resultValue = stepToolResults?.[i]?.result ?? {};
           allToolCalls.push({
             moduleId,
             inputs: tc.args as Record<string, unknown>,
@@ -197,7 +200,7 @@ export async function toolLoop(
     // Model attempted to call a tool that is not available for the current role.
     // Return a graceful error reply instead of crashing with a 500.
     if (err instanceof NoSuchToolError) {
-      const available = Object.keys(tools).map((t) => t.replaceAll("-", ".")).join(", ");
+      const available = Object.keys(tools).map((t) => t.replaceAll("--", ".")).join(", ");
       return {
         reply: `I'm unable to complete this request. The action you requested requires permissions that are not available for your current role. Available commands: ${available}.`,
         toolCalls: allToolCalls,
