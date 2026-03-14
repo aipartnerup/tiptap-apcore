@@ -33,5 +33,12 @@ export { TiptapExecutor } from "./runtime/index.js";
 export { AclGuard } from "./security/index.js";
 
 // Re-export apcore-mcp types and constants (runtime server functions moved to tiptap-apcore/server)
-export type { ServeOptions, ToOpenaiToolsOptions, RegistryOrExecutor, OpenAIToolDef } from "apcore-mcp";
+export type {
+  ServeOptions,
+  AsyncServeOptions,
+  AsyncServeApp,
+  ToOpenaiToolsOptions,
+  RegistryOrExecutor,
+  OpenAIToolDef,
+} from "apcore-mcp";
 export { REGISTRY_EVENTS, MODULE_ID_PATTERN } from "apcore-mcp";

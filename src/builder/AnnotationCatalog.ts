@@ -18,6 +18,7 @@ const QUERY_ANNOTATIONS: ModuleAnnotations = Object.freeze({
   requiresApproval: false,
   openWorld: false,
   streaming: false,
+  cacheable: true,
 });
 
 const FORMAT_ANNOTATIONS: ModuleAnnotations = Object.freeze({

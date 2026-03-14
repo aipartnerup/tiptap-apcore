@@ -21,11 +21,11 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(vitest@3.2.4(jsdom@25.0.1))
       apcore-js:
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.13.0
+        version: 0.13.0
       apcore-mcp:
-        specifier: ^0.7.0
-        version: 0.7.0(zod@4.3.6)
+        specifier: ^0.10.0
+        version: 0.10.0(zod@4.3.6)
       apdev-js:
         specifier: ^0.1.1
         version: 0.1.1
@@ -331,79 +331,66 @@ packages:
     resolution: {integrity: sha512-Ob8YgT5kD/lSIYW2Rcngs5kNB/44Q2RzBSPz9brf2WEtcGR7/f/E9HeHn1wYaAwKBni+bdXEwgHvUd0x12lQSA==}
     cpu: [arm]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.58.0':
     resolution: {integrity: sha512-K+RI5oP1ceqoadvNt1FecL17Qtw/n9BgRSzxif3rTL2QlIu88ccvY+Y9nnHe/cmT5zbH9+bpiJuG1mGHRVwF4Q==}
     cpu: [arm]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.58.0':
     resolution: {integrity: sha512-T+17JAsCKUjmbopcKepJjHWHXSjeW7O5PL7lEFaeQmiVyw4kkc5/lyYKzrv6ElWRX/MrEWfPiJWqbTvfIvjM1Q==}
     cpu: [arm64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.58.0':
     resolution: {integrity: sha512-cCePktb9+6R9itIJdeCFF9txPU7pQeEHB5AbHu/MKsfH/k70ZtOeq1k4YAtBv9Z7mmKI5/wOLYjQ+B9QdxR6LA==}
     cpu: [arm64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.58.0':
     resolution: {integrity: sha512-iekUaLkfliAsDl4/xSdoCJ1gnnIXvoNz85C8U8+ZxknM5pBStfZjeXgB8lXobDQvvPRCN8FPmmuTtH+z95HTmg==}
     cpu: [loong64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.58.0':
     resolution: {integrity: sha512-68ofRgJNl/jYJbxFjCKE7IwhbfxOl1muPN4KbIqAIe32lm22KmU7E8OPvyy68HTNkI2iV/c8y2kSPSm2mW/Q9Q==}
     cpu: [loong64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.58.0':
     resolution: {integrity: sha512-dpz8vT0i+JqUKuSNPCP5SYyIV2Lh0sNL1+FhM7eLC457d5B9/BC3kDPp5BBftMmTNsBarcPcoz5UGSsnCiw4XQ==}
     cpu: [ppc64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.58.0':
     resolution: {integrity: sha512-4gdkkf9UJ7tafnweBCR/mk4jf3Jfl0cKX9Np80t5i78kjIH0ZdezUv/JDI2VtruE5lunfACqftJ8dIMGN4oHew==}
     cpu: [ppc64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.58.0':
     resolution: {integrity: sha512-YFS4vPnOkDTD/JriUeeZurFYoJhPf9GQQEF/v4lltp3mVcBmnsAdjEWhr2cjUCZzZNzxCG0HZOvJU44UGHSdzw==}
     cpu: [riscv64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.58.0':
     resolution: {integrity: sha512-x2xgZlFne+QVNKV8b4wwaCS8pwq3y14zedZ5DqLzjdRITvreBk//4Knbcvm7+lWmms9V9qFp60MtUd0/t/PXPw==}
     cpu: [riscv64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.58.0':
     resolution: {integrity: sha512-jIhrujyn4UnWF8S+DHSkAkDEO3hLX0cjzxJZPLF80xFyzyUIYgSMRcYQ3+uqEoyDD2beGq7Dj7edi8OnJcS/hg==}
     cpu: [s390x]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.58.0':
     resolution: {integrity: sha512-+410Srdoh78MKSJxTQ+hZ/Mx+ajd6RjjPwBPNd0R3J9FtL6ZA0GqiiyNjCO9In0IzZkCNrpGymSfn+kgyPQocg==}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.58.0':
     resolution: {integrity: sha512-ZjMyby5SICi227y1MTR3VYBpFTdZs823Rs/hpakufleBoufoOIB6jtm9FEoxn/cgO7l6PM2rCEl5Kre5vX0QrQ==}
     cpu: [x64]
     os: [linux]
-    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.58.0':
     resolution: {integrity: sha512-ds4iwfYkSQ0k1nb8LTcyXw//ToHOnNTJtceySpL3fa7tc/AsE+UpUFphW126A6fKBGJD5dhRvg8zw1rvoGFxmw==}
@@ -640,12 +627,12 @@ packages:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==}
     engines: {node: '>=12'}
 
-  apcore-js@0.6.0:
-    resolution: {integrity: sha512-OhL4JNYHk/EZO9vPAt1NGaa3kePoW/2iQKmRXuRrDS3oMD0v405asvuDiXlKDokUK+pLHzKkkLgGRWAiRPK2gQ==}
+  apcore-js@0.13.0:
+    resolution: {integrity: sha512-GkZAOXlknjQeVEEaEZ0f0FffxHxaV4qQUHAILC+3+FkWCzk4z9lqC40RS8Tqlp7k5vh6DqS4ltA3NQnaQp6eBw==}
     engines: {node: '>=18.0.0'}
 
-  apcore-mcp@0.7.0:
-    resolution: {integrity: sha512-L1c93rBnNftAeetl5qSBLfEMlZgXWdxC4nURwjpnf7NJSmU2Svv9xXEIMKIuNQqTO0f3Gx4nlQRSuwYDr4DwkA==}
+  apcore-mcp@0.10.0:
+    resolution: {integrity: sha512-DSLcP0317cJbERIUrQ3osZQCE8fuvLyWQRHrcOf2B1WKnIikNeY2o5HyM193YTcBm9n+H8taSVcOoD+DmAWinw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -1103,6 +1090,10 @@ packages:
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
+
+  mcp-embedded-ui@0.3.0:
+    resolution: {integrity: sha512-EpaxDzU/NdKt4yr59237qaArKLiW5meCugtYYD7GilhApzfwml3MP/jpBPnHfbE6cHOoHw33ydwOHQ90Z0duXA==}
+    engines: {node: '>=18.0.0'}
 
   mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
@@ -2128,17 +2119,18 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
-  apcore-js@0.6.0:
+  apcore-js@0.13.0:
     dependencies:
       '@sinclair/typebox': 0.34.48
       js-yaml: 4.1.1
       uuid: 9.0.1
 
-  apcore-mcp@0.7.0(zod@4.3.6):
+  apcore-mcp@0.10.0(zod@4.3.6):
     dependencies:
       '@modelcontextprotocol/sdk': 1.26.0(zod@4.3.6)
-      apcore-js: 0.6.0
+      apcore-js: 0.13.0
       jsonwebtoken: 9.0.3
+      mcp-embedded-ui: 0.3.0
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
@@ -2661,6 +2653,8 @@ snapshots:
       uc.micro: 2.1.0
 
   math-intrinsics@1.1.0: {}
+
+  mcp-embedded-ui@0.3.0: {}
 
   mdurl@2.0.0: {}
 

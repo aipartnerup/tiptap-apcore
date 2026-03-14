@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-14
+
+### Changed
+
+- **BREAKING**: Upgraded `apcore-js` peer dependency from `^0.6.0` to `^0.13.0`.
+- **BREAKING**: Upgraded `apcore-mcp` peer dependency from `^0.7.0` to `^0.10.0`.
+- **BREAKING**: Removed `ExplorerHandler` and `ExplorerHandlerOptions` re-exports from `tiptap-apcore/server` — these no longer exist in apcore-mcp 0.10.0 (replaced by `mcp-embedded-ui`).
+- Query command annotations now include `cacheable: true` to leverage apcore-mcp 0.10.0 caching support.
+
+### Added
+
+- Re-export `asyncServe()` from `tiptap-apcore/server` — embeddable MCP HTTP handler for mounting into existing servers (new in apcore-mcp 0.9.0).
+- Re-export `AsyncServeOptions` and `AsyncServeApp` types from both `tiptap-apcore` and `tiptap-apcore/server`.
+
+### Dependencies
+
+- **Peer**: `apcore-js` ^0.13.0 (was ^0.6.0), `apcore-mcp` ^0.10.0 (was ^0.7.0).
+
 ## [0.1.0] - 2026-02-28
 
 Initial release of **tiptap-apcore** — let AI safely control your TipTap editor through standardized, schema-validated, access-controlled modules.
@@ -120,4 +138,5 @@ Initial release of **tiptap-apcore** — let AI safely control your TipTap edito
 - **Runtime**: Node.js >= 18.0.0.
 - **License**: Apache-2.0.
 
+[0.2.0]: https://github.com/aipartnerup/tiptap-apcore/releases/tag/v0.2.0
 [0.1.0]: https://github.com/aipartnerup/tiptap-apcore/releases/tag/v0.1.0
