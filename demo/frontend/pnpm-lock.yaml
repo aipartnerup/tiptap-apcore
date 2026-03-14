@@ -1181,8 +1181,8 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@tiptap/core': ^2.0.0
-      apcore-js: ^0.6.0
-      apcore-mcp: ^0.7.0
+      apcore-js: ^0.13.0
+      apcore-mcp: ^0.10.0
 
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
