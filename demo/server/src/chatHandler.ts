@@ -87,7 +87,7 @@ function filterRegistryByAcl(registry: Registry, guard: AclGuard): Registry {
             return desc != null && guard.isAllowed(id, desc);
           });
       }
-      const value = (target as Record<string | symbol, unknown>)[prop];
+      const value = (target as unknown as Record<string | symbol, unknown>)[prop];
       return typeof value === "function"
         ? (value as (...args: unknown[]) => unknown).bind(target)
         : value;
@@ -304,7 +304,7 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
       }
       : { role };
 
-    const { executor, registry } = withApcore(editor, { acl: aclConfig, includeUnsafe: false });
+    const { executor, registry } = withApcore(editor as unknown as import("tiptap-apcore").EditorLike, { acl: aclConfig, includeUnsafe: false });
 
     // Filter registry so AI only sees commands it can actually call.
     // This prevents the AI from discovering and attempting restricted commands.
