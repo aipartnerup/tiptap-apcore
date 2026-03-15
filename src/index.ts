@@ -10,6 +10,7 @@
  */
 
 export { withApcore } from "./withApcore.js";
+export { TiptapAPCore } from "./runtime/TiptapAPCore.js";
 export type {
   ApcoreOptions,
   ApcoreResult,

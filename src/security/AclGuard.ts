@@ -16,6 +16,12 @@ export class AclGuard {
     this.logger = logger;
   }
 
+  /** Update ACL configuration at runtime */
+  updateConfig(config: AclConfig | undefined): void {
+    this.config = config;
+    this.logger?.info?.("ACL configuration updated", { role: config?.role });
+  }
+
   check(moduleId: string, descriptor: ModuleDescriptor): void {
     if (!this.isAllowed(moduleId, descriptor)) {
       const reason = this.getDenialReason(moduleId, descriptor);

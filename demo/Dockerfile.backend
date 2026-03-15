@@ -1,24 +1,29 @@
 FROM node:20-alpine
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /app
 
-# Copy root package files for tiptap-apcore (linked dependency)
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
+# 1. Copy root package files, patches, and install (builds tiptap-apcore)
+COPY package.json pnpm-lock.yaml ./
+COPY patches/ ./patches/
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-# Build root package
-RUN npm install --ignore-scripts && npm run build
+RUN pnpm install --frozen-lockfile && pnpm run build
 
-# Copy server package files
-COPY demo/server/package.json ./demo/server/
+# 2. Copy server package files and install
+#    "tiptap-apcore": "file:../.." resolves to /app
+COPY demo/server/package.json demo/server/pnpm-lock.yaml ./demo/server/
 WORKDIR /app/demo/server
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
-# Copy server source and build
-COPY demo/server/ ./
-RUN npm run build
+# 3. Copy server source and build
+COPY demo/server/src/ ./src/
+COPY demo/server/tsconfig.json ./
+RUN pnpm run build
 
-EXPOSE 3001
+# REST API on /api/*, MCP endpoint on /mcp, Tool Explorer on /explorer
+EXPOSE 8000
 
 CMD ["node", "dist/index.js"]

@@ -1,0 +1,15 @@
+diff --git a/dist/html.js b/dist/html.js
+index 187e283845ed1ae7b2cfe9f5a5f980c493d26477..38d5489b9324d50e606bb0dc5f4559faf85b7e5e 100644
+--- a/dist/html.js
++++ b/dist/html.js
+@@ -1,9 +1,7 @@
+ import { readFileSync } from "node:fs";
+ import { join, dirname } from "node:path";
+ import { fileURLToPath } from "node:url";
+-const __dirname_resolved = typeof __dirname !== "undefined"
+-    ? __dirname
+-    : dirname(fileURLToPath(import.meta.url));
++const __dirname_resolved = dirname(fileURLToPath(import.meta.url));
+ export const EXPLORER_HTML_TEMPLATE = readFileSync(join(__dirname_resolved, "explorer.html"), "utf-8");
+ const DEFAULT_TITLE = "MCP Tool Explorer";
+ function escapeHtml(str) {

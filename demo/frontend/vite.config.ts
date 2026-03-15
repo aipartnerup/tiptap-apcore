@@ -17,7 +17,15 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: process.env.VITE_API_URL || "http://localhost:3001",
+        target: process.env.VITE_API_URL || "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/mcp": {
+        target: process.env.VITE_API_URL || "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/explorer": {
+        target: process.env.VITE_API_URL || "http://localhost:8000",
         changeOrigin: true,
       },
     },

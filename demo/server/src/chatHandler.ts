@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { withApcore, AclGuard } from "tiptap-apcore";
 import type { Registry, AclConfig } from "tiptap-apcore";
 import { toolLoop } from "./toolLoop.js";
+import { applyJsdomGlobals, saveGlobals, restoreGlobals, globalsMutex } from "./jsdomGlobals.js";
 
 interface ChatRequest {
   messages: { role: "user" | "assistant"; content: string }[];
@@ -185,37 +186,12 @@ HISTORY: undo/redo only work for changes made within the SAME request (the edito
 ${editorHtml}`;
 }
 
-const GLOBAL_KEYS = ["document", "window", "navigator", "Node", "HTMLElement", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame"] as const;
-
-function setGlobal(key: string, value: unknown): void {
-  try {
-    (globalThis as Record<string, unknown>)[key] = value;
-  } catch {
-    // Some properties (e.g. navigator in Node 22+) are getter-only
-    Object.defineProperty(globalThis, key, {
-      value,
-      writable: true,
-      configurable: true,
-    });
-  }
-}
-
 function createHeadlessEditor(html: string): Editor {
   // Set up a minimal DOM environment for TipTap
   const dom = new JSDOM("<!DOCTYPE html><html><body><div id=\"editor\"></div></body></html>");
-  const document = dom.window.document;
+  applyJsdomGlobals(dom);
 
-  // Assign globals that TipTap/ProseMirror need
-  setGlobal("document", document);
-  setGlobal("window", dom.window);
-  setGlobal("navigator", dom.window.navigator);
-  setGlobal("Node", dom.window.Node);
-  setGlobal("HTMLElement", dom.window.HTMLElement);
-  setGlobal("getComputedStyle", dom.window.getComputedStyle);
-  setGlobal("requestAnimationFrame", (cb: () => void) => setTimeout(cb, 0));
-  setGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
-
-  const element = document.getElementById("editor")!;
+  const element = dom.window.document.getElementById("editor")!;
 
   const editor = new Editor({
     element,
@@ -224,21 +200,6 @@ function createHeadlessEditor(html: string): Editor {
   });
 
   return editor;
-}
-
-function cleanupGlobals(): void {
-  for (const key of GLOBAL_KEYS) {
-    try {
-      delete (globalThis as Record<string, unknown>)[key];
-    } catch {
-      // Restore original by removing our override
-      Object.defineProperty(globalThis, key, {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-    }
-  }
 }
 
 export async function chatHandler(req: Request, res: Response): Promise<void> {
@@ -292,6 +253,10 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
 
   let editor: Editor | null = null;
 
+  // Acquire mutex to prevent concurrent requests from corrupting globals
+  await globalsMutex.acquire();
+  const savedGlobals = saveGlobals();
+
   try {
     // 1. Create headless TipTap editor
     editor = createHeadlessEditor(editorHtml);
@@ -337,6 +302,7 @@ export async function chatHandler(req: Request, res: Response): Promise<void> {
     if (editor) {
       editor.destroy();
     }
-    cleanupGlobals();
+    restoreGlobals(savedGlobals);
+    globalsMutex.release();
   }
 }

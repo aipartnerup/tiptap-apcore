@@ -1,8 +1,10 @@
 import express from "express";
+import type { Request, Response } from "express";
 import cors from "cors";
 import { chatHandler } from "./chatHandler.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-const app = express();
+const app: ReturnType<typeof express> = express();
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
@@ -47,5 +49,48 @@ app.get("/api/health", (_req, res) => {
 
   res.json({ status: "ok", defaultModel, providers });
 });
+
+// MCP routes — handler is set lazily via initMcp() to avoid importing
+// apcore-mcp server modules at module evaluation time (breaks tests).
+let mcpHandler: ((req: IncomingMessage, res: ServerResponse) => Promise<void>) | null = null;
+let mcpStatusFn: (() => { initialized: boolean; toolCount: number }) | null = null;
+
+app.get("/api/mcp-status", (_req, res) => {
+  res.json(mcpStatusFn ? mcpStatusFn() : { initialized: false, toolCount: 0 });
+});
+
+/** Forward a request to the MCP handler with error handling. */
+async function forwardToMcp(req: Request, res: Response): Promise<void> {
+  if (!mcpHandler) {
+    res.status(503).json({ error: "MCP server not initialized" });
+    return;
+  }
+  try {
+    await mcpHandler(req, res);
+  } catch (err) {
+    console.error("MCP handler error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+}
+
+app.all("/mcp", forwardToMcp);
+app.all("/explorer", forwardToMcp);
+app.all("/explorer/*", forwardToMcp);
+
+export async function initMcp(): Promise<void> {
+  const { initMcpServer, getMcpStatus } = await import("./mcpServer.js");
+  const mcpApp = await initMcpServer();
+  mcpHandler = mcpApp.handler;
+  mcpStatusFn = getMcpStatus;
+}
+
+export async function shutdownMcp(): Promise<void> {
+  const { closeMcpServer } = await import("./mcpServer.js");
+  await closeMcpServer();
+  mcpHandler = null;
+  mcpStatusFn = null;
+}
 
 export { app };

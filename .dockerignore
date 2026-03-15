@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.gitignore
+.claude
+.vscode
+coverage
+**/*.test.ts
+**/tests/
+**/.env*
+!demo/.env

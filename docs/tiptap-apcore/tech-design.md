@@ -4,9 +4,9 @@
 |--------------|------------------------------------------------------------|
 | **Title**    | tiptap-apcore: TipTap Editor APCore Module Library         |
 | **Author**   | AIPartnerUp Engineering                                    |
-| **Status**   | Draft                                                      |
+| **Status**   | Approved                                                   |
 | **Date**     | 2026-02-19                                                 |
-| **Version**  | 0.1.0                                                      |
+| **Version**  | 0.2.1                                                      |
 | **RFC**      | APCORE-RFC-002                                             |
 | **Reviewers**| Core Team, APCore SDK maintainers                          |
 
@@ -31,11 +31,15 @@
 
 ---
 
+> **Note (v0.2.1):** Since this document was written, the `TiptapAPCore` class has been introduced as the primary entry point (Facade pattern). It encapsulates registry, executor, and ACL into a single instance with convenience methods (`call`, `list`, `getDefinition`, `setAcl`, `refresh`). The `withApcore()` factory function is retained for backward compatibility and delegates to `TiptapAPCore` internally. All architectural decisions described below remain valid.
+
+---
+
 ## 1. Overview / Abstract
 
 **tiptap-apcore** is a TypeScript library that wraps the TipTap rich text editor's command and query API as APCore modules, enabling AI agents to safely control TipTap editors via MCP (Model Context Protocol) or OpenAI function calling. It is the **first reference implementation** of the APCore universal AI-UI safety control framework.
 
-The library provides a single entry point -- `withApcore(editor, options?)` -- that scans a TipTap `Editor` instance at runtime, auto-discovers all installed extensions and their commands, generates typed `ModuleDescriptor` objects with safety annotations (readonly, destructive, idempotent, requires_approval), and exposes a `Registry` + `Executor` pair that plugs directly into the existing `apcore-mcp-typescript` SDK. This design means an AI agent can read editor content, apply formatting, insert text, and perform destructive operations like `clearContent` -- all governed by role-based access control (ACL) that prevents unauthorized mutations.
+The library provides two entry points -- `new TiptapAPCore(editor, options?)` (recommended) and `withApcore(editor, options?)` (shortcut) -- that scan a TipTap `Editor` instance at runtime, auto-discover all installed extensions and their commands, generate typed `ModuleDescriptor` objects with safety annotations (readonly, destructive, idempotent, requires_approval), and expose a `Registry` + `Executor` pair that plugs directly into the existing `apcore-mcp-typescript` SDK. This design means an AI agent can read editor content, apply formatting, insert text, and perform destructive operations like `clearContent` -- all governed by role-based access control (ACL) that prevents unauthorized mutations.
 
 ---
 

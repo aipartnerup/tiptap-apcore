@@ -1,8 +1,11 @@
 # tiptap-apcore
 
-Let AI safely control your TipTap editor via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) and OpenAI Function Calling.
+> Let AI safely control your TipTap editor via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) and OpenAI Function Calling.
 
 **tiptap-apcore** wraps every TipTap editor command as a schema-driven [APCore](https://github.com/aipartnerup) module — complete with JSON Schema validation, safety annotations, and fine-grained access control. Any MCP-compatible AI agent can then discover and invoke these modules to read, format, insert, or restructure rich-text content.
+
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![TipTap](https://img.shields.io/badge/TipTap-v2-green.svg)](https://tiptap.dev)
 
 ## Features
 
@@ -13,8 +16,9 @@ Let AI safely control your TipTap editor via the [Model Context Protocol (MCP)](
 - **Role-based ACL** — `readonly`, `editor`, `admin` roles with tag-level and module-level overrides
 - **Safety annotations** — every command tagged `readonly`, `destructive`, `idempotent`, `requiresApproval`, `openWorld`, `streaming`
 - **Strict JSON Schemas** — `inputSchema` + `outputSchema` with `additionalProperties: false` for all known commands
-- **Dynamic re-discovery** — call `registry.discover()` to pick up extensions added at runtime
-- **925 tests**, 99.7% statement coverage
+- **Dynamic re-discovery** — call `apcore.refresh()` or `registry.discover()` to pick up extensions added at runtime
+- **Dynamic ACL** — call `apcore.setAcl()` to switch roles without recreating the instance
+- **Framework agnostic** — works with React, Vue, Angular, or Vanilla JS
 
 ## Installation
 
@@ -26,10 +30,12 @@ npm install tiptap-apcore apcore-js apcore-mcp @tiptap/core
 
 ## Quick Start
 
+### Using `TiptapAPCore` class (recommended)
+
 ```typescript
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { withApcore, serve, toOpenaiTools } from "tiptap-apcore";
+import { TiptapAPCore } from "tiptap-apcore";
 
 // 1. Create a TipTap editor
 const editor = new Editor({
@@ -37,21 +43,40 @@ const editor = new Editor({
   content: "<p>Hello world</p>",
 });
 
-// 2. Create APCore registry + executor
-const { registry, executor } = withApcore(editor, {
+// 2. Create the APCore instance
+const apcore = new TiptapAPCore(editor, {
   acl: { role: "editor" },   // no destructive ops
 });
 
-// 3a. Launch an MCP Server (stdio)
-await serve(executor);
+// 3. Call commands directly
+await apcore.call("tiptap.format.toggleBold", {});
+const { html } = await apcore.call("tiptap.query.getHTML", {});
 
-// 3b. Or export OpenAI tool definitions
-const tools = toOpenaiTools(executor);
+// 4. Switch roles at runtime (e.g. when user toggles admin mode)
+apcore.setAcl({ role: "admin" });
 
-// 3c. Or call commands directly
-await executor.call("tiptap.format.toggleBold", {});
-const { html } = await executor.call("tiptap.query.getHTML", {});
+// 5. Launch an MCP Server (Node.js only — import from tiptap-apcore/server)
+import { serve } from "tiptap-apcore/server";
+await serve(apcore.executor);
+
+// 6. Or export OpenAI tool definitions
+import { toOpenaiTools } from "tiptap-apcore/server";
+const tools = toOpenaiTools(apcore.executor);
 ```
+
+### Using `withApcore` factory (shortcut)
+
+```typescript
+import { withApcore } from "tiptap-apcore";
+
+const { registry, executor } = withApcore(editor, {
+  acl: { role: "editor" },
+});
+
+await executor.call("tiptap.format.toggleBold", {});
+```
+
+`withApcore` returns a `{ registry, executor }` pair. Use it when you don't need dynamic ACL updates or the convenience methods on `TiptapAPCore`.
 
 ## Commands
 
@@ -100,24 +125,27 @@ Commands discovered from extensions but not in the built-in catalog. Excluded by
 
 ```typescript
 // Read-only: only query commands
-withApcore(editor, { acl: { role: "readonly" } });
+new TiptapAPCore(editor, { acl: { role: "readonly" } });
 
 // Editor: query + format + content + history + selection
-withApcore(editor, { acl: { role: "editor" } });
+new TiptapAPCore(editor, { acl: { role: "editor" } });
 
 // Admin: everything including destructive
-withApcore(editor, { acl: { role: "admin" } });
+new TiptapAPCore(editor, { acl: { role: "admin" } });
 
 // Custom: readonly base + allow format tag
-withApcore(editor, { acl: { role: "readonly", allowTags: ["format"] } });
+new TiptapAPCore(editor, { acl: { role: "readonly", allowTags: ["format"] } });
 
 // Custom: admin but deny destructive tag
-withApcore(editor, { acl: { role: "admin", denyTags: ["destructive"] } });
+new TiptapAPCore(editor, { acl: { role: "admin", denyTags: ["destructive"] } });
 
 // Module-level: deny specific commands
-withApcore(editor, {
+new TiptapAPCore(editor, {
   acl: { role: "admin", denyModules: ["tiptap.destructive.clearContent"] },
 });
+
+// Dynamic: switch roles at runtime
+apcore.setAcl({ role: "admin" });
 ```
 
 **Precedence:** `denyModules` > `allowModules` > `denyTags` > `allowTags` > role
@@ -126,32 +154,80 @@ withApcore(editor, {
 
 ## MCP Server
 
-```typescript
-import { withApcore, serve } from "tiptap-apcore";
+Server functions must be imported from the `tiptap-apcore/server` subpath (Node.js only).
 
-const { executor } = withApcore(editor);
+```typescript
+import { TiptapAPCore } from "tiptap-apcore";
+import { serve } from "tiptap-apcore/server";
+
+const apcore = new TiptapAPCore(editor);
 
 // stdio (default)
-await serve(executor);
+await serve(apcore.executor);
 
 // HTTP streaming
-await serve(executor, {
+await serve(apcore.executor, {
   transport: "streamable-http",
   host: "127.0.0.1",
   port: 8000,
 });
 
 // Server-Sent Events
-await serve(executor, { transport: "sse", port: 3000 });
+await serve(apcore.executor, { transport: "sse", port: 3000 });
+```
+
+### Embedding in Express / Koa / Fastify (`asyncServe`)
+
+`asyncServe` returns a Node.js HTTP request handler that you can mount in any existing server — no separate process needed.
+
+```typescript
+import express from "express";
+import { TiptapAPCore } from "tiptap-apcore";
+import { asyncServe } from "tiptap-apcore/server";
+
+const app = express();
+const apcore = new TiptapAPCore(editor, { acl: { role: "admin" } });
+
+// Create the MCP handler with the built-in Tool Explorer UI
+const { handler, close } = await asyncServe(apcore.executor, {
+  endpoint: "/mcp",           // MCP protocol endpoint
+  explorer: true,             // Enable /explorer UI for interactive testing
+  explorerPrefix: "/explorer",
+  allowExecute: true,         // Allow tool execution from the explorer
+  name: "my-editor-mcp",
+});
+
+// Mount alongside your existing routes
+app.all("/mcp", (req, res) => handler(req, res));
+app.all("/explorer", (req, res) => handler(req, res));
+app.all("/explorer/*", (req, res) => handler(req, res));
+
+app.listen(8000);
+
+// On shutdown:
+await close();
+```
+
+MCP clients (Claude Desktop, Cursor, etc.) can then connect to your server:
+
+```json
+{
+  "mcpServers": {
+    "my-editor": {
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
 ```
 
 ## OpenAI Function Calling
 
 ```typescript
-import { withApcore, toOpenaiTools } from "tiptap-apcore";
+import { TiptapAPCore } from "tiptap-apcore";
+import { toOpenaiTools } from "tiptap-apcore/server";
 
-const { executor } = withApcore(editor);
-const tools = toOpenaiTools(executor);
+const apcore = new TiptapAPCore(editor);
+const tools = toOpenaiTools(apcore.executor);
 
 // Use with OpenAI API
 const response = await openai.chat.completions.create({
@@ -168,18 +244,18 @@ APCore's JSON schemas work directly with AI SDK's `jsonSchema()` — no Zod conv
 ```typescript
 import { generateText, tool, jsonSchema } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { withApcore } from "tiptap-apcore";
+import { TiptapAPCore } from "tiptap-apcore";
 
-const { registry, executor } = withApcore(editor, { acl: { role: "editor" } });
+const apcore = new TiptapAPCore(editor, { acl: { role: "editor" } });
 
 // Convert APCore modules to AI SDK tools
 const tools: Record<string, CoreTool> = {};
-for (const id of registry.list()) {
-  const def = registry.getDefinition(id)!;
-  tools[id.replaceAll(".", "-")] = tool({
+for (const id of apcore.list()) {
+  const def = apcore.getDefinition(id)!;
+  tools[id.replaceAll(".", "--")] = tool({
     description: def.description,
     parameters: jsonSchema(def.inputSchema),
-    execute: (args) => executor.call(id, args),
+    execute: (args) => apcore.call(id, args),
   });
 }
 
@@ -194,15 +270,35 @@ const { text, steps } = await generateText({
 
 ## API Reference
 
-### `withApcore(editor, options?)`
+### `TiptapAPCore` class
 
-Creates an APCore `{ registry, executor }` pair from a TipTap editor.
+The primary entry point. Encapsulates registry, executor, ACL, and extension discovery.
+
+```typescript
+const apcore = new TiptapAPCore(editor, options?);
+```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `prefix` | `string` | `"tiptap"` | Module ID prefix (lowercase alphanumeric) |
 | `acl` | `AclConfig` | `undefined` | Access control configuration (permissive if omitted) |
 | `includeUnsafe` | `boolean` | `false` | Include commands not in the built-in catalog |
+| `logger` | `Logger` | `undefined` | Logger for diagnostic output |
+| `sanitizeHtml` | `(html: string) => string` | `undefined` | HTML sanitizer for insertContent/setContent |
+
+| Method / Property | Description |
+|-------------------|-------------|
+| `registry` | The APCore Registry (read-only) |
+| `executor` | The APCore Executor (read-only) |
+| `call(moduleId, inputs)` | Execute a command (async) |
+| `list(options?)` | List module IDs, optionally filtered by `tags` and/or `prefix` |
+| `getDefinition(moduleId)` | Get full `ModuleDescriptor` or `null` |
+| `setAcl(acl)` | Update ACL configuration at runtime (validates role) |
+| `refresh()` | Re-scan extensions and update registry; returns module count |
+
+### `withApcore(editor, options?)`
+
+Factory function that creates a `TiptapAPCore` instance and returns `{ registry, executor }`. Accepts the same options as `TiptapAPCore`.
 
 ### Registry Methods
 
@@ -223,8 +319,23 @@ Creates an APCore `{ registry, executor }` pair from a TipTap editor.
 |--------|-------------|
 | `call(moduleId, inputs)` | Execute a module (async) |
 | `callAsync(moduleId, inputs)` | Alias for `call()` |
+| `registry` | Access the underlying registry |
 
 ### Error Codes
+
+All errors are instances of `TiptapModuleError` (extends `Error`).
+
+```typescript
+import { TiptapModuleError, ErrorCodes } from "tiptap-apcore";
+
+try {
+  await apcore.call("tiptap.format.toggleBold", {});
+} catch (err) {
+  if (err instanceof TiptapModuleError) {
+    console.log(err.code, err.message, err.details);
+  }
+}
+```
 
 | Code | Description |
 |------|-------------|
@@ -236,95 +347,55 @@ Creates an APCore `{ registry, executor }` pair from a TipTap editor.
 | `SCHEMA_VALIDATION_ERROR` | Invalid options (bad prefix, bad role) |
 | `INTERNAL_ERROR` | Unexpected error |
 
-## Comparison with TipTap AI Toolkit
+### Server Exports (`tiptap-apcore/server`)
 
-TipTap's official AI solution is the **[AI Toolkit](https://tiptap.dev/docs/ai-toolkit/getting-started/overview)** (`@tiptap-pro/ai-toolkit`), a paid extension for client-side AI-powered editing. The two projects serve different use cases and are complementary.
+| Function | Description |
+|----------|-------------|
+| `serve(executor, options?)` | Launch an MCP server (stdio / streamable-http / sse) |
+| `asyncServe(executor, options?)` | Build an embeddable HTTP handler — returns `{ handler, close }` |
+| `toOpenaiTools(executor, options?)` | Export OpenAI Function Calling tool definitions |
+| `resolveRegistry(executor)` | Access the registry from an executor |
+| `resolveExecutor(registry)` | Create an executor from a registry |
 
-### Architecture
+#### `asyncServe` Options
 
-| | TipTap AI Toolkit | tiptap-apcore |
-|---|---|---|
-| **Type** | Client-side TipTap extension | Server-side / headless adapter |
-| **License** | Proprietary (TipTap Pro subscription) | Apache-2.0 (open source) |
-| **Runtime** | Browser only | Browser + Node.js + headless |
-| **Protocol** | Provider-specific adapters | MCP standard + OpenAI Function Calling |
-| **Approach** | AI generates content, streams into editor | AI invokes structured commands on editor |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name` | `string` | `"apcore-mcp"` | MCP server name |
+| `endpoint` | `string` | `"/mcp"` | MCP protocol endpoint path |
+| `explorer` | `boolean` | `false` | Enable the browser-based Tool Explorer UI |
+| `explorerPrefix` | `string` | `"/explorer"` | URL prefix for the explorer |
+| `allowExecute` | `boolean` | `false` | Allow tool execution from the explorer UI |
+| `validateInputs` | `boolean` | `false` | Validate inputs against JSON schemas |
+| `tags` | `string[]` | `null` | Filter modules by tags |
+| `prefix` | `string` | `null` | Filter modules by prefix |
 
-### Command Granularity
+`asyncServe` returns `{ handler, close }` where `handler` is `(IncomingMessage, ServerResponse) => Promise<void>`.
 
-| | TipTap AI Toolkit | tiptap-apcore |
-|---|---|---|
-| **Tools exposed** | 5 coarse tools | 79+ fine-grained commands |
-| **Read** | `tiptapRead`, `tiptapReadSelection` | `getHTML`, `getJSON`, `getText`, `isActive`, `getAttributes`, `isEmpty`, `isEditable`, `isFocused`, `getCharacterCount`, `getWordCount` |
-| **Write** | `tiptapEdit` (accepts operations array) | Individual commands: `toggleBold`, `insertContent`, `setNode`, `wrapIn`, ... |
-| **Comments** | `getThreads`, `editThreads` | Not supported |
-| **Schemas** | Tool parameters with descriptions | Strict JSON Schema per command (`additionalProperties: false`) |
+## Architecture
 
-The AI Toolkit bundles all editing into a single `tiptapEdit` tool that accepts an array of operations. tiptap-apcore exposes each operation as a standalone tool with its own schema — this gives the LLM more precise tool selection and lower token usage per call.
+```
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
+│  TipTap Editor   │────▶│  tiptap-apcore   │────▶│  apcore-mcp  │
+│  (@tiptap/core)  │     │  (this package)  │     │  (protocol)  │
+└──────────────────┘     └──────────────────┘     └──────────────┘
+                          Registry + Executor       MCP / OpenAI
+```
 
-### Security
+**tiptap-apcore provides:**
+- Extension discovery (`ExtensionScanner`)
+- Module building (`ModuleBuilder` + `AnnotationCatalog` + `SchemaCatalog`)
+- Command execution (`TiptapExecutor`)
+- Access control (`AclGuard`)
 
-| | TipTap AI Toolkit | tiptap-apcore |
-|---|---|---|
-| **Access control** | None built-in | 3 roles + tag/module allow/deny lists |
-| **Safety annotations** | None | `readonly`, `destructive`, `idempotent`, `requiresApproval`, `openWorld`, `streaming` per command |
-| **Approval workflow** | Review mode (accept/reject UI) | `requiresApproval` annotation for MCP clients |
-| **Input validation** | Basic parameter types | Strict JSON Schema with `additionalProperties: false` |
-
-### Protocol Support
-
-| | TipTap AI Toolkit | tiptap-apcore |
-|---|---|---|
-| **MCP** | Not supported | stdio, streamable-http, SSE |
-| **OpenAI** | Via adapter (`@tiptap-pro/ai-adapter-openai`) | `toOpenaiTools()` one-liner |
-| **Anthropic** | Via adapter (`@tiptap-pro/ai-adapter-anthropic`) | Via MCP (any MCP client) |
-| **Vercel AI SDK** | Via adapter | Direct (`generateText` + `tool` + `jsonSchema`) or via MCP |
-| **Custom agents** | Adapter required per provider | Any MCP-compatible agent works |
-
-### AI Content Generation
-
-| | TipTap AI Toolkit | tiptap-apcore |
-|---|---|---|
-| **Streaming output** | `streamText()`, `streamHtml()` | Not yet supported |
-| **Review mode** | Accept / Reject UI | Not supported (planned) |
-| **Content generation** | Built-in (prompts → editor) | Delegated to LLM (tool use → commands) |
-
-The AI Toolkit streams LLM-generated content directly into the editor with a review UI. tiptap-apcore takes a different approach: the LLM decides *which commands* to call, and the executor applies them. Content generation is the LLM's responsibility, not the editor's.
-
-### Server-Side & Headless
-
-| | TipTap AI Toolkit | tiptap-apcore |
-|---|---|---|
-| **Headless mode** | Not supported | Full support |
-| **Batch processing** | Not possible | Process multiple documents programmatically |
-| **CI/CD pipelines** | Not applicable | Can validate, transform, or test content |
-| **Multi-tenant** | One editor per user | One executor per editor, server-side isolation |
-
-### When to Use Which
-
-**Use TipTap AI Toolkit when:**
-- You need real-time streaming of AI-generated content into the editor
-- You want a built-in accept/reject review UI
-- You're building a client-side-only application
-- You need comment thread management with AI
-
-**Use tiptap-apcore when:**
-- You want any MCP-compatible agent to control the editor
-- You need fine-grained access control (roles, tag/module blocking)
-- You're running headless / server-side (batch processing, CI/CD)
-- You want strict schema validation and safety annotations
-- You need to support multiple AI providers without per-provider adapters
-- You want open-source with no licensing fees
-
-**Use both when:**
-- You want streaming AI content generation (AI Toolkit) AND structured command control (tiptap-apcore) in the same application
-- You want client-side AI chat + server-side AI automation on the same editor
+**apcore-mcp provides:**
+- `serve(executor)` — Launch an MCP server (stdio / HTTP / SSE)
+- `toOpenaiTools(executor)` — Export OpenAI Function Calling tool definitions
+- Types and constants for the APCore protocol
 
 ## AI Capabilities
 
 ### Supported (79 commands)
-
-tiptap-apcore exposes 79 built-in commands that an AI agent can invoke:
 
 | Category | Count | Commands |
 |----------|-------|----------|
@@ -348,58 +419,66 @@ The `selectText` command enables semantic text selection — the AI can select t
 | Streaming content generation | Content generation is delegated to the LLM; the executor applies discrete commands |
 | Comment threads | Not part of core TipTap — requires `@tiptap-pro` extensions |
 
-## Architecture
+## Comparison with TipTap AI Toolkit
 
-### tiptap-apcore vs apcore-mcp
+TipTap's official AI solution is the **[AI Toolkit](https://tiptap.dev/docs/ai-toolkit/getting-started/overview)** (`@tiptap-pro/ai-toolkit`), a paid extension for client-side AI-powered editing. The two projects serve different use cases and are complementary.
 
-**tiptap-apcore** is the TipTap adapter that wraps editor commands as APCore modules. **apcore-mcp** is the protocol layer that exposes those modules to AI agents via MCP or OpenAI Function Calling.
+| | TipTap AI Toolkit | tiptap-apcore |
+|---|---|---|
+| **Type** | Client-side TipTap extension | Server-side / headless adapter |
+| **License** | Proprietary (TipTap Pro subscription) | Apache-2.0 (open source) |
+| **Runtime** | Browser only | Browser + Node.js + headless |
+| **Protocol** | Provider-specific adapters | MCP standard + OpenAI Function Calling |
+| **Tools exposed** | 5 coarse tools | 79+ fine-grained commands |
+| **Access control** | None built-in | 3 roles + tag/module allow/deny lists |
+| **Safety annotations** | None | `readonly`, `destructive`, `idempotent`, `requiresApproval` per command |
+| **Streaming output** | `streamText()`, `streamHtml()` | Not yet supported |
+| **Headless mode** | Not supported | Full support |
 
-```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
-│  TipTap Editor   │────▶│  tiptap-apcore   │────▶│  apcore-mcp  │
-│  (@tiptap/core)  │     │  (this package)  │     │  (protocol)  │
-└──────────────────┘     └──────────────────┘     └──────────────┘
-                          Registry + Executor       MCP / OpenAI
-```
+**Use TipTap AI Toolkit when** you need real-time streaming of AI-generated content with a built-in accept/reject review UI.
 
-**tiptap-apcore provides:**
-- Extension discovery (`ExtensionScanner`)
-- Module building (`ModuleBuilder` + `AnnotationCatalog` + `SchemaCatalog`)
-- Command execution (`TiptapExecutor`)
-- Access control (`AclGuard`)
+**Use tiptap-apcore when** you want any MCP-compatible agent to control the editor with fine-grained access control, strict schema validation, and headless/server-side support.
 
-**apcore-mcp provides:**
-- `serve(executor)` — Launch an MCP server (stdio / HTTP / SSE)
-- `toOpenaiTools(executor)` — Export OpenAI Function Calling tool definitions
-- `resolveRegistry(executor)` — Access the registry from an executor
-- `resolveExecutor(registry)` — Create an executor from a registry
-- Types and constants for the APCore protocol
+**Use both** when you want streaming AI content generation AND structured command control in the same application.
 
 ## Demo
 
-The `demo/` directory contains a full-stack example: a React + Vite frontend with a TipTap editor, and an Express backend that uses the [Vercel AI SDK](https://ai-sdk.dev/) to let any LLM edit the document via APCore tools.
+The `demo/` directory contains a full-stack example with two modes:
 
 ```bash
 cd demo/server && npm install && npm run dev   # Terminal 1
-cd demo && npm install && npm run dev           # Terminal 2
+cd demo/frontend && npm install && npm run dev # Terminal 2
+# Open http://localhost:5173
 ```
 
 Set `LLM_MODEL` (e.g. `openai:gpt-4o`, `anthropic:claude-sonnet-4-5`) in `demo/.env`. See [`demo/README.md`](demo/README.md) for details.
 
+### AI Editor Demo tab
+
+A React + Vite frontend with a TipTap editor and an Express backend that uses the [Vercel AI SDK](https://ai-sdk.dev/) to let any LLM edit the document via APCore tools. Includes role-based ACL switching, demo scenarios, and a tool call log.
+
+### MCP Server tab
+
+A persistent headless TipTap editor exposed as an MCP `streamable-http` endpoint via `asyncServe()`. The tab shows:
+
+- **Status** — live server status, tool count, and endpoint URL
+- **Tool Explorer** — embedded `/explorer` UI for browsing and executing all 79+ tools interactively
+- **Connect** — copy-paste config snippets for Claude Desktop, Cursor, and generic MCP clients
+
+The MCP endpoint is available at `http://localhost:8000/mcp` — connect any MCP client to control the editor remotely.
+
+## Documentation
+
+- [Getting Started Guide](docs/GETTING_STARTED.md) — React integration, ACL roles, MCP and AI SDK setup.
+- [Technical Design](docs/tiptap-apcore/tech-design.md) — Architecture, security model, and design decisions.
+
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Type check
-npm run typecheck
-
-# Build
-npm run build
+npm install       # Install dependencies
+npm test          # Run tests
+npm run typecheck # Type check
+npm run build     # Build
 ```
 
 ## License

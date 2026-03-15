@@ -6,10 +6,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Load .env from demo/ directory (parent of server/)
 dotenv.config({ path: resolve(__dirname, "../../.env") });
 
-import { app } from "./app.js";
+import { app, initMcp, shutdownMcp } from "./app.js";
 
-const port = parseInt(process.env.PORT || "3001", 10);
+const port = parseInt(process.env.PORT || "8000", 10);
 
-app.listen(port, () => {
+await initMcp();
+
+const server = app.listen(port, () => {
   console.log(`tiptap-apcore demo server running on http://localhost:${port}`);
 });
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, async () => {
+    console.log(`\n${signal} received, shutting down...`);
+    await shutdownMcp();
+    server.close();
+  });
+}

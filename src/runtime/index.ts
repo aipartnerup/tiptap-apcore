@@ -1,3 +1,4 @@
-// Runtime layer - TiptapRegistry, TiptapExecutor (Tasks 6, 9)
+// Runtime layer - TiptapAPCore, TiptapRegistry, TiptapExecutor
+export { TiptapAPCore } from "./TiptapAPCore.js";
 export { TiptapRegistry } from "./TiptapRegistry.js";
 export { TiptapExecutor } from "./TiptapExecutor.js";

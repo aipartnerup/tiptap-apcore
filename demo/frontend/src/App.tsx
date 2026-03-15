@@ -3,18 +3,19 @@ import { useState, useCallback, useRef } from "react";
 const MAX_HISTORY = 50;
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import {
-  withApcore,
+  TiptapAPCore,
   type Registry,
   type Executor,
-  type ApcoreResult,
 } from "tiptap-apcore";
 import Editor from "./components/Editor";
 import ToolPanel from "./components/ToolPanel";
 import type { LogEntry } from "./components/ToolPanel";
 import AclSwitcher from "./components/AclSwitcher";
 import ChatPanel from "./components/ChatPanel";
+import MCPDemo from "./components/MCPDemo";
 
 export default function App() {
+  const [tab, setTab] = useState<"editor" | "mcp">("editor");
   const [role, setRole] = useState<"readonly" | "editor" | "admin">("admin");
   const [registry, setRegistry] = useState<Registry | null>(null);
   const [executor, setExecutor] = useState<Executor | null>(null);
@@ -22,7 +23,7 @@ export default function App() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [historyCount, setHistoryCount] = useState(0);
   const editorRef = useRef<TiptapEditor | null>(null);
-  const apcoreRef = useRef<ApcoreResult | null>(null);
+  const apcoreRef = useRef<TiptapAPCore | null>(null);
   const htmlHistoryRef = useRef<string[]>([]);
 
   const addLog = useCallback((entry: LogEntry) => {
@@ -33,20 +34,30 @@ export default function App() {
   const initApcore = useCallback(
     (editor: TiptapEditor, currentRole: "readonly" | "editor" | "admin") => {
       try {
-        const result = withApcore(editor, { acl: { role: currentRole } });
-        apcoreRef.current = result;
-        setRegistry(result.registry);
-        setExecutor(result.executor);
-        addLog({
-          type: "info",
-          message: `APCore initialized: role=${currentRole}, ${result.registry.list().length} modules`,
-          timestamp: Date.now(),
-        });
+        if (!apcoreRef.current) {
+          const apcore = new TiptapAPCore(editor, { acl: { role: currentRole } });
+          apcoreRef.current = apcore;
+          setRegistry(apcore.registry);
+          setExecutor(apcore.executor);
+          addLog({
+            type: "info",
+            message: `APCore initialized: role=${currentRole}, ${apcore.list().length} modules`,
+            timestamp: Date.now(),
+          });
+        } else {
+          // Dynamic update ACL!
+          apcoreRef.current.setAcl({ role: currentRole });
+          addLog({
+            type: "info",
+            message: `APCore updated: role=${currentRole}`,
+            timestamp: Date.now(),
+          });
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         addLog({
           type: "error",
-          message: `APCore init failed: ${msg}`,
+          message: `APCore init/update failed: ${msg}`,
           timestamp: Date.now(),
         });
       }
@@ -272,104 +283,122 @@ export default function App() {
           tiptap-<span>apcore</span> Demo
         </h1>
         <p>Let AI safely control your TipTap editor</p>
+        <nav className="app-tabs">
+          <button
+            className={`app-tab ${tab === "editor" ? "active" : ""}`}
+            onClick={() => setTab("editor")}
+          >
+            AI Editor Demo
+          </button>
+          <button
+            className={`app-tab ${tab === "mcp" ? "active" : ""}`}
+            onClick={() => setTab("mcp")}
+          >
+            MCP Server
+          </button>
+        </nav>
       </header>
 
-      <div className="app-layout">
-        {/* Left: ACL + Module panel */}
-        <div>
-          <AclSwitcher role={role} onChange={handleRoleChange} />
-          <ToolPanel registry={registry} executor={executor} onLog={addLog} />
-        </div>
-
-        {/* Center: Editor */}
-        <Editor onEditorReady={handleEditorReady} />
-
-        {/* Right-1: Chat Panel */}
-        <ChatPanel
-          getEditorHtml={getEditorHtml}
-          role={role}
-          onEditorUpdate={handleEditorUpdate}
-          onLog={addLog}
-          onUndo={handleUndo}
-          onClearHistory={handleClearHistory}
-          historyCount={historyCount}
-          maxHistory={MAX_HISTORY}
-        />
-
-        {/* Right-2: Demo scenarios + Log */}
-        <div className="demo-panel">
-          <div className="card">
-            <h2>Demo Scenarios</h2>
-            <div className="demo-buttons">
-              <button className="demo-btn" onClick={demoInsertHeading}>
-                <div className="demo-btn-title">AI Insert Title</div>
-                <div className="demo-btn-desc">
-                  toggleHeading + insertContent
-                </div>
-              </button>
-
-              <button className="demo-btn" onClick={demoWriteParagraph}>
-                <div className="demo-btn-title">AI Write a Paragraph</div>
-                <div className="demo-btn-desc">
-                  insertContent with HTML paragraph
-                </div>
-              </button>
-
-              <button className="demo-btn" onClick={demoFormat}>
-                <div className="demo-btn-title">AI Formatting</div>
-                <div className="demo-btn-desc">
-                  selectAll + bold + italic + bulletList
-                </div>
-              </button>
-
-              <button
-                className="demo-btn danger"
-                onClick={demoClearDocument}
-              >
-                <div className="demo-btn-title">AI Clear Document</div>
-                <div className="demo-btn-desc">
-                  clearContent (requires confirmation)
-                </div>
-              </button>
-            </div>
+      {tab === "editor" ? (
+        <div className="app-layout">
+          {/* Left: ACL + Module panel */}
+          <div>
+            <AclSwitcher role={role} onChange={handleRoleChange} />
+            <ToolPanel registry={registry} executor={executor} onLog={addLog} />
           </div>
 
-          <div className="card log-panel">
-            <h2>
-              Output Log
-              {logs.length > 0 && (
-                <button
-                  className="log-clear-btn"
-                  onClick={() => setLogs([])}
-                >
-                  Clear
+          {/* Center: Editor */}
+          <Editor onEditorReady={handleEditorReady} />
+
+          {/* Right-1: Chat Panel */}
+          <ChatPanel
+            getEditorHtml={getEditorHtml}
+            role={role}
+            onEditorUpdate={handleEditorUpdate}
+            onLog={addLog}
+            onUndo={handleUndo}
+            onClearHistory={handleClearHistory}
+            historyCount={historyCount}
+            maxHistory={MAX_HISTORY}
+          />
+
+          {/* Right-2: Demo scenarios + Log */}
+          <div className="demo-panel">
+            <div className="card">
+              <h2>Demo Scenarios</h2>
+              <div className="demo-buttons">
+                <button className="demo-btn" onClick={demoInsertHeading}>
+                  <div className="demo-btn-title">AI Insert Title</div>
+                  <div className="demo-btn-desc">
+                    toggleHeading + insertContent
+                  </div>
                 </button>
-              )}
-            </h2>
-            <div className="log-entries">
-              {logs.length === 0 && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-secondary)",
-                    padding: 4,
-                  }}
+
+                <button className="demo-btn" onClick={demoWriteParagraph}>
+                  <div className="demo-btn-title">AI Write a Paragraph</div>
+                  <div className="demo-btn-desc">
+                    insertContent with HTML paragraph
+                  </div>
+                </button>
+
+                <button className="demo-btn" onClick={demoFormat}>
+                  <div className="demo-btn-title">AI Formatting</div>
+                  <div className="demo-btn-desc">
+                    selectAll + bold + italic + bulletList
+                  </div>
+                </button>
+
+                <button
+                  className="demo-btn danger"
+                  onClick={demoClearDocument}
                 >
-                  No logs yet. Try a demo scenario or chat with AI.
-                </div>
-              )}
-              {logs.map((entry, i) => (
-                <div key={i} className={`log-entry ${entry.type}`}>
-                  <span style={{ opacity: 0.6 }}>
-                    {new Date(entry.timestamp).toLocaleTimeString()}
-                  </span>{" "}
-                  {entry.message}
-                </div>
-              ))}
+                  <div className="demo-btn-title">AI Clear Document</div>
+                  <div className="demo-btn-desc">
+                    clearContent (requires confirmation)
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="card log-panel">
+              <h2>
+                Output Log
+                {logs.length > 0 && (
+                  <button
+                    className="log-clear-btn"
+                    onClick={() => setLogs([])}
+                  >
+                    Clear
+                  </button>
+                )}
+              </h2>
+              <div className="log-entries">
+                {logs.length === 0 && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-secondary)",
+                      padding: 4,
+                    }}
+                  >
+                    No logs yet. Try a demo scenario or chat with AI.
+                  </div>
+                )}
+                {logs.map((entry, i) => (
+                  <div key={i} className={`log-entry ${entry.type}`}>
+                    <span style={{ opacity: 0.6 }}>
+                      {new Date(entry.timestamp).toLocaleTimeString()}
+                    </span>{" "}
+                    {entry.message}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <MCPDemo />
+      )}
 
       {/* Confirmation Dialog */}
       {showConfirm && (

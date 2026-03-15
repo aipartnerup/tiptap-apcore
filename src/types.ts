@@ -17,6 +17,7 @@ import type { ModuleAnnotations, JsonSchema } from "apcore-mcp";
 
 /** Minimal logger interface for diagnostic output */
 export interface Logger {
+  info?(msg: string, ctx?: Record<string, unknown>): void;
   warn(msg: string, ctx?: Record<string, unknown>): void;
   error(msg: string, ctx?: Record<string, unknown>): void;
 }

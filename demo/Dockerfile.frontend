@@ -1,23 +1,29 @@
 FROM node:20-alpine
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /app
 
-# Copy root package files for tiptap-apcore (linked dependency)
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
+# 1. Copy root package files, patches, and install (builds tiptap-apcore)
+COPY package.json pnpm-lock.yaml ./
+COPY patches/ ./patches/
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-# Build root package
-RUN npm install --ignore-scripts && npm run build
+RUN pnpm install --frozen-lockfile && pnpm run build
 
-# Copy frontend package files
-COPY demo/frontend/package.json ./demo/frontend/
+# 2. Copy frontend package files and install
+#    "tiptap-apcore": "file:../.." resolves to /app
+COPY demo/frontend/package.json demo/frontend/pnpm-lock.yaml ./demo/frontend/
 WORKDIR /app/demo/frontend
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
-# Copy frontend source
-COPY demo/frontend/ ./
+# 3. Copy frontend source
+COPY demo/frontend/src/ ./src/
+COPY demo/frontend/tsconfig.json ./
+COPY demo/frontend/vite.config.ts ./
+COPY demo/frontend/index.html ./
 
 EXPOSE 5173
 
-CMD ["npx", "vite", "--host", "0.0.0.0"]
+CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0"]

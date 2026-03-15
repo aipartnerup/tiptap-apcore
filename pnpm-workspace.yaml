@@ -1,0 +1,2 @@
+patchedDependencies:
+  mcp-embedded-ui@0.3.0: patches/mcp-embedded-ui@0.3.0.patch

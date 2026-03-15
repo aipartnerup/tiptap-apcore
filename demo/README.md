@@ -1,39 +1,54 @@
 # tiptap-apcore Demo
 
-A full-stack demo showcasing AI-powered TipTap editor control via APCore modules.
+A full-stack demo showcasing AI-powered TipTap editor control via APCore modules. The demo has two tabs:
 
+**AI Editor Demo** — Interactive rich-text editing via AI chat
 - **Left panel**: ACL role switcher + module browser (click any module to execute it)
 - **Center**: TipTap rich-text editor
 - **Right**: AI Chat panel (talk to AI, it edits the document via tools) + preset demo scenarios + output log
+
+**MCP Server** — Persistent headless editor exposed as an MCP endpoint
+- **Status**: Live server status, tool count, endpoint URL
+- **Tool Explorer**: Embedded `/explorer` UI for browsing and executing all 69+ tools
+- **Connect**: Copy-paste config snippets for Claude Desktop, Cursor, and generic MCP clients
 
 ## Architecture
 
 ```
 demo/
 ├── frontend/    Vite + React (:5173)
-│   └── src/     AclSwitcher | ToolPanel | Editor | ChatPanel
-├── server/      Express (:3001)
-│   └── src/     chatHandler | toolLoop
+│   └── src/     AclSwitcher | ToolPanel | Editor | ChatPanel | MCPDemo
+├── server/      Express (:8000)
+│   └── src/     chatHandler | toolLoop | mcpServer
 ├── .env         API keys (shared)
 └── docker-compose.yml
 
-┌─ Frontend (Vite + React, :5173) ──────────────────┐
-│  AclSwitcher | ToolPanel | Editor | ChatPanel      │
-│                                                     │
-│  ChatPanel sends POST /api/chat:                    │
-│    { messages[], editorHtml, model, role }           │
-└──────────────┬─────────────────────────────────────┘
-               │ Vite dev proxy: /api → localhost:3001
-┌──────────────▼─────────────────────────────────────┐
-│  Backend (Express, :3001)                           │
-│                                                     │
-│  1. Create headless TipTap editor (JSDOM)           │
-│  2. editor.commands.setContent(editorHtml)           │
-│  3. withApcore(editor, { acl: { role } })           │
-│  4. Build AI SDK tool definitions from registry      │
-│  5. generateText() with maxSteps (auto tool loop)   │
-│  6. Return { reply, updatedHtml, toolCalls[] }      │
-└─────────────────────────────────────────────────────┘
+┌─ Frontend (Vite + React, :5173) ──────────────────────────────┐
+│  [Tab: AI Editor Demo]                                         │
+│    AclSwitcher | ToolPanel | Editor | ChatPanel                │
+│    ChatPanel sends POST /api/chat:                             │
+│      { messages[], editorHtml, model, role }                   │
+│                                                                │
+│  [Tab: MCP Server]                                             │
+│    MCPDemo: status + iframe /explorer + connect snippets       │
+└──────────────┬────────────────────────────────────────────────┘
+               │ Vite dev proxy: /api, /mcp, /explorer → :8000
+┌──────────────▼────────────────────────────────────────────────┐
+│  Backend (Express, :8000)                                      │
+│                                                                │
+│  POST /api/chat  — per-request headless editor + AI SDK        │
+│    1. Create headless TipTap editor (JSDOM)                    │
+│    2. withApcore(editor, { acl: { role } })                    │
+│    3. generateText() with maxSteps (auto tool loop)            │
+│    4. Return { reply, updatedHtml, toolCalls[] }               │
+│                                                                │
+│  ALL /mcp        — MCP streamable-http endpoint (persistent)   │
+│  GET /explorer   — MCP Tool Explorer UI                        │
+│  GET /api/mcp-status — { initialized, toolCount }              │
+│                                                                │
+│  MCP uses a persistent headless editor created at startup      │
+│  via asyncServe(executor, { explorer: true })                  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## AI SDK
@@ -89,7 +104,11 @@ npm install
 npm run dev
 ```
 
-You should see: `tiptap-apcore demo server running on http://localhost:3001`
+You should see:
+```
+MCP server initialized: 69 tools
+tiptap-apcore demo server running on http://localhost:8000
+```
 
 ### Step 4: Start the frontend (Terminal 2)
 
@@ -122,7 +141,9 @@ docker compose up
 ```
 
 - Frontend: http://localhost:5173
-- Backend: http://localhost:3001
+- Backend API: http://localhost:8000
+- MCP endpoint: http://localhost:8000/mcp
+- Tool Explorer: http://localhost:8000/explorer
 
 ## Environment Variables
 
@@ -134,7 +155,7 @@ All env vars are read from `demo/.env`.
 | `OPENAI_API_KEY` | OpenAI API key | — | Yes, if using OpenAI models |
 | `ANTHROPIC_API_KEY` | Anthropic API key | — | Yes, if using Anthropic models |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Google AI API key | — | Yes, if using Gemini models |
-| `PORT` | Backend server port | `3001` | No |
+| `PORT` | Backend server port | `8000` | No |
 
 ### Supported models
 
@@ -157,6 +178,21 @@ Set `LLM_MODEL` to any model that supports tool use, or override per-request fro
 - AI uses TipTap tools via APCore executor
 - Switch models via text input (e.g. `openai:gpt-4o`, `anthropic:claude-sonnet-4-5`)
 - Tool call logs displayed inline in the chat and output log
+
+### MCP Server (no LLM key needed)
+- Persistent headless TipTap editor with all commands exposed via MCP `streamable-http`
+- **Tool Explorer** at `/explorer` — browse schemas, execute tools interactively
+- Connect Claude Desktop, Cursor, or any MCP client:
+  ```json
+  {
+    "mcpServers": {
+      "tiptap-apcore": {
+        "url": "http://localhost:8000/mcp"
+      }
+    }
+  }
+  ```
+- Status endpoint at `/api/mcp-status` returns `{ initialized, toolCount }`
 
 ### ACL Roles
 - **readonly** — Only query modules (getHTML, getText, etc.)
