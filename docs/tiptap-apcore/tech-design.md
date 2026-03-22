@@ -1726,8 +1726,8 @@ tiptap-apcore follows semantic versioning:
 | 5 | ProseMirror Guide | https://prosemirror.net/docs/guide/ |
 | 6 | Model Context Protocol Specification | https://modelcontextprotocol.io/specification |
 | 7 | MCP Tool Annotations | https://modelcontextprotocol.io/specification/2025-03-26/server/tools#annotations |
-| 8 | apcore-mcp-typescript SDK | https://github.com/aipartnerup/apcore-mcp-typescript |
-| 9 | APCore Framework | https://aipartnerup.com |
+| 8 | apcore-mcp-typescript SDK | https://github.com/aiperceivable/apcore-mcp-typescript |
+| 9 | APCore Framework | https://aiperceivable.com |
 | 10 | OpenAI Function Calling | https://platform.openai.com/docs/guides/function-calling |
 | 11 | JSON Schema Specification | https://json-schema.org/specification |
 

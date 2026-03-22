@@ -1,6 +1,6 @@
 {
   "name": "tiptap-apcore",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "TipTap editor APCore modules - let AI safely control your TipTap editor",
   "type": "module",
   "main": "./dist/index.js",
@@ -67,13 +67,13 @@
     "rich-text",
     "prosemirror"
   ],
-  "author": "aipartnerup",
-  "homepage": "https://aipartnerup.com",
+  "author": "aiperceivable",
+  "homepage": "https://aiperceivable.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aipartnerup/tiptap-apcore.git"
+    "url": "https://github.com/aiperceivable/tiptap-apcore.git"
   },
   "bugs": {
-    "url": "https://github.com/aipartnerup/tiptap-apcore/issues"
+    "url": "https://github.com/aiperceivable/tiptap-apcore/issues"
   }
 }

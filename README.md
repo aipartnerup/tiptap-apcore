@@ -2,7 +2,7 @@
 
 > Let AI safely control your TipTap editor via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) and OpenAI Function Calling.
 
-**tiptap-apcore** wraps every TipTap editor command as a schema-driven [APCore](https://github.com/aipartnerup) module — complete with JSON Schema validation, safety annotations, and fine-grained access control. Any MCP-compatible AI agent can then discover and invoke these modules to read, format, insert, or restructure rich-text content.
+**tiptap-apcore** wraps every TipTap editor command as a schema-driven [APCore](https://github.com/aiperceivable) module — complete with JSON Schema validation, safety annotations, and fine-grained access control. Any MCP-compatible AI agent can then discover and invoke these modules to read, format, insert, or restructure rich-text content.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![TipTap](https://img.shields.io/badge/TipTap-v2-green.svg)](https://tiptap.dev)
